@@ -10,23 +10,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load persisted session
+    // Restore session from localStorage (set after a real login)
     const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
-    
+
     if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      // Default mock user to ensure dashboards are immediately accessible without logging in
-      const defaultUser = {
-        id: 1,
-        name: 'Sarah Miller',
-        email: 'warden@campusstay.com',
-        role: 'warden'
-      };
-      setUser(defaultUser);
-      localStorage.setItem('user', JSON.stringify(defaultUser));
-      localStorage.setItem('token', 'mock-jwt-token');
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        // Corrupted storage — clear it
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
     }
     setLoading(false);
   }, []);
@@ -35,20 +30,26 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const response = await axios.post('/auth/login', { email, password, role: expectedRole });
+
       if (response.data.success) {
+        const serverData = response.data.data || response.data;
         const loggedUser = {
-          ...response.data.user,
-          role: email.includes('admin') ? 'admin' : email.includes('warden') ? 'warden' : 'student'
+          ...(serverData.user || {}),
+          // Ensure role is always derived from the actual user record, not just the email
+          role: serverData.user?.role || expectedRole,
         };
+
         setUser(loggedUser);
-        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('token', serverData.token || '');
         localStorage.setItem('user', JSON.stringify(loggedUser));
         return { success: true, user: loggedUser };
       }
+
       return { success: false, error: 'Invalid response from server' };
     } catch (err) {
       console.error('Login error:', err);
-      return { success: false, error: err.message || 'Login failed' };
+      const errorMsg = err.response?.data?.error || err.message || 'Login failed';
+      return { success: false, error: errorMsg };
     } finally {
       setLoading(false);
     }

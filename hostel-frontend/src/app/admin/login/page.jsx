@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { Building2, Lock, Mail, ShieldAlert, Cpu } from 'lucide-react';
+import { Building2, Lock, Mail } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminLogin() {
@@ -11,7 +11,6 @@ export default function AdminLogin() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [twoFACode, setTwoFACode] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -93,7 +92,7 @@ export default function AdminLogin() {
           <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 lg:p-12 shadow-2xl relative">
             <div className="mb-8">
               <h2 className="text-2xl font-extrabold text-white tracking-tight">Secure Terminal Login</h2>
-              <p className="text-xs text-slate-400 font-semibold mt-1">Authorized personnel only. Multi-factor auth required.</p>
+              <p className="text-xs text-slate-400 font-semibold mt-1">Authorized personnel only.</p>
             </div>
 
             {error && (
@@ -133,32 +132,6 @@ export default function AdminLogin() {
                 </div>
               </div>
 
-              {/* MFA Warning */}
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex gap-3 items-start">
-                <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-0.5 text-left">
-                  <p className="text-[10px] font-bold text-amber-300 uppercase tracking-tight">Security Alert</p>
-                  <p className="text-[10px] text-amber-200/80 font-medium">
-                    2FA code is simulated on mock login. Enter any 6-digit PIN below.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">2FA Authenticator Token</label>
-                <div className="relative">
-                  <Cpu className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    maxLength="6"
-                    placeholder="000 000"
-                    value={twoFACode}
-                    onChange={(e) => setTwoFACode(e.target.value)}
-                    className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 transition-all text-white tracking-widest font-mono"
-                    required
-                  />
-                </div>
-              </div>
 
               <button
                 type="submit"
