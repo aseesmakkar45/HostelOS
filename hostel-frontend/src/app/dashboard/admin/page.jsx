@@ -288,7 +288,7 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-slate-800">Auto-Approval Pass</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Auto-cleared 24-hr visitor pass for Michael Scott.</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Auto-cleared 24-hr visitor pass for Manish Sharma.</p>
                       </div>
                     </div>
                   </div>

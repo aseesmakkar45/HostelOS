@@ -240,7 +240,7 @@ export default function AdminStaffPage() {
             </div>
             <div className="space-y-4">
               {[
-                { label: 'Full Name', key: 'name', placeholder: 'e.g. John Smith' },
+                { label: 'Full Name', key: 'name', placeholder: 'e.g. Rajesh Kumar' },
                 { label: 'Role', key: 'role', placeholder: 'e.g. Security Supervisor' },
                 { label: 'Contact Number', key: 'contact', placeholder: 'e.g. +91 99999 88888' },
               ].map(({ label, key, placeholder }) => (

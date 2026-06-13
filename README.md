@@ -183,8 +183,9 @@ npx next start -p 3002
 | Student | `student@campusstay.com` | `student123` |
 | Warden | `warden@campusstay.com` | `warden123` |
 | Admin | `admin@campusstay.com` | `admin123` |
+| Gate Kiosk | *Use Warden or Admin credentials above* | |
 
-> All portals are accessible from one URL. The **Student Portal** is the default landing page. Other portals are linked in the footer of the student login screen.
+> All portals are accessible from the main root URL (`/`) which acts as a Role Selection Portal. Select your role to access the corresponding login interface.
 
 ---
 
@@ -300,7 +301,7 @@ The backend exposes a REST API at `http://localhost:5000/api`.
    ```
    NEXT_PUBLIC_API_URL = https://your-backend.vercel.app/api
    ```
-5. Deploy. The Student Portal will be your main URL — other portals are accessible from the footer.
+5. Deploy. The main URL will present the Role Selection selector, which redirects to each portal.
 
 ### Backend
 
@@ -324,7 +325,7 @@ The backend exposes a REST API at `http://localhost:5000/api`.
 - The gate biometric threshold is set to Euclidean distance < 0.18 on 3 facial landmark ratios. Lighting conditions and camera angle affect accuracy — face the camera directly for best results.
 - Face data is stored as a JSON array in the database. In production, this would be replaced with 128-dimensional face embeddings.
 - The dining forecast uses a deterministic formula (residents minus active leaves) since we don't have historical ML training data in the demo.
-- All 4 portals are built from a single Next.js codebase — in production they'd be on one Vercel URL with the student portal as the default entry point.
+- All 4 portals are built from a single Next.js codebase — in production they are served from one Vercel URL with a Role Selection landing page as the entry point.
 
 ---
 

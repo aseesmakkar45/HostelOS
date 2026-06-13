@@ -249,9 +249,9 @@ export default function WardenDashboard() {
                       <tr className="group">
                         <td className="py-5 px-2">
                           <div className="flex items-center gap-3">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=John" className="w-9 h-9 rounded-lg bg-indigo-50" alt="avatar" />
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Kabir" className="w-9 h-9 rounded-lg bg-indigo-50" alt="avatar" />
                             <div className="min-w-0">
-                              <p className="text-sm font-bold text-slate-800 truncate">John Wick</p>
+                              <p className="text-sm font-bold text-slate-800 truncate">Kabir Singh</p>
                               <p className="text-[10px] text-slate-400">ID: 239012</p>
                             </div>
                           </div>
@@ -316,8 +316,8 @@ export default function WardenDashboard() {
                   <div className="flex gap-4 p-4 border border-slate-50 rounded-2xl hover:bg-slate-50 transition-colors">
                     <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Guest3" className="w-12 h-12 rounded-xl bg-slate-100 shrink-0" alt="avatar" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-800 truncate">David Beckham</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Visiting: Leo Messi (302-C)</p>
+                      <p className="text-sm font-bold text-slate-800 truncate">Devendra Sharma</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Visiting: Aarav Sharma (101)</p>
                       <div className="flex gap-2 mt-3">
                         <button className="flex-1 py-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-600 cursor-pointer">Approve</button>
                         <button className="flex-1 py-1.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-lg hover:bg-rose-50 hover:text-rose-600 cursor-pointer">Reject</button>

@@ -155,7 +155,7 @@ export default function WardenLogin() {
                   <Building2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-base">Sarah Miller</h4>
+                  <h4 className="font-bold text-base">Sunita Sharma</h4>
                   <p className="text-xs text-indigo-200">Senior Warden • Block A</p>
                 </div>
               </div>
