@@ -59,6 +59,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    window.location.href = '/';
   };
 
   return (

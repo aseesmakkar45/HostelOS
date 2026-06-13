@@ -2,31 +2,44 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Lock, Eye, EyeOff, UserCheck, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Shield, Lock, Eye, EyeOff, Mail, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function GateKioskLogin() {
   const router = useRouter();
-  const [staffId, setStaffId] = useState('');
-  const [pin, setPin] = useState('');
-  const [useBiometrics, setUseBiometrics] = useState(true);
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
 
-    // Simulated terminal authentication
-    setTimeout(() => {
-      if (staffId && pin) {
-        router.push('/gate');
+    try {
+      // Authenticate against database. We send 'admin' as default role fallback,
+      // but the backend will return the user's actual database role.
+      const res = await login(email, password, 'admin');
+      
+      if (res.success) {
+        // Enforce that only security admin or wardens can unlock the gate console
+        if (res.user.role === 'admin' || res.user.role === 'warden') {
+          router.push('/gate');
+        } else {
+          setError('Unauthorized: Only Warden or Admin accounts can unlock this console.');
+        }
       } else {
-        setError('Authentication credentials rejected. Check code.');
-        setSubmitting(false);
+        setError(res.error || 'Authentication credentials rejected.');
       }
-    }, 1200);
+    } catch (err) {
+      setError('Connection refused. Database verification failed.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const triggerSOS = () => {
@@ -64,46 +77,40 @@ export default function GateKioskLogin() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Staff ID Card Number</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Staff Email Address</label>
                 <div className="relative">
-                  <UserCheck className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                   <input
-                    type="text"
-                    placeholder="Enter Staff ID (e.g. SGT-409)"
-                    value={staffId}
-                    onChange={(e) => setStaffId(e.target.value)}
-                    className="w-full h-16 bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-6 text-lg font-bold focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-700"
+                    type="email"
+                    placeholder="admin@campusstay.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full h-16 bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-6 text-sm font-semibold focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-700"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Access PIN Code</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Access Password</label>
                 <div className="relative">
                   <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                   <input
-                    type="password"
-                    maxLength="6"
-                    placeholder="••••••"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    className="w-full h-16 bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-6 text-2xl font-bold tracking-widest focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-700"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full h-16 bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-12 text-sm font-semibold focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-700"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between px-1 text-xs">
-                <label className="flex items-center gap-3 cursor-pointer select-none font-bold text-slate-500">
-                  <input
-                    type="checkbox"
-                    checked={useBiometrics}
-                    onChange={(e) => setUseBiometrics(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  Enable FaceID / Biometric Bypass
-                </label>
               </div>
 
               <button
@@ -119,7 +126,7 @@ export default function GateKioskLogin() {
           <div className="mt-8 text-center text-xs text-slate-400 flex flex-wrap justify-center gap-4 font-bold uppercase tracking-wider border-t border-slate-100 pt-6">
             <Link href="/login" className="hover:text-indigo-600">Warden Portal</Link>
             <span>•</span>
-            <Link href="/student/login" className="hover:text-indigo-600">Student Portal</Link>
+            <Link href="/" className="hover:text-indigo-600">Main Portal Selection</Link>
           </div>
         </div>
       </main>
@@ -140,9 +147,7 @@ export default function GateKioskLogin() {
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-800">
                 <span className="text-xs font-semibold text-slate-400">Biometrics Hub</span>
-                <span className={`text-xs font-bold ${useBiometrics ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {useBiometrics ? 'Online' : 'Disabled'}
-                </span>
+                <span className="text-xs font-bold text-emerald-400">Online</span>
               </div>
             </div>
           </div>
@@ -156,7 +161,7 @@ export default function GateKioskLogin() {
         <div className="space-y-6 pt-10">
           <div className="text-center">
             <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-1">Last Secure Login</p>
-            <p className="text-[10px] font-bold text-slate-400 tracking-tight">OFC. ANDREWS @ 06:12 AM</p>
+            <p className="text-[10px] font-bold text-slate-400 tracking-tight">OFC. SINGH @ 06:12 AM</p>
           </div>
           <button
             onClick={triggerSOS}

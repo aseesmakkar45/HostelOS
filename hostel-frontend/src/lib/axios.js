@@ -34,7 +34,8 @@ instance.interceptors.response.use(
 
     // 401 Unauthorized — token expired or invalid
     if (error.response.status === 401) {
-      if (typeof window !== 'undefined') {
+      const isLoginRequest = error.config && error.config.url && error.config.url.includes('/auth/login');
+      if (!isLoginRequest && typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         // Redirect to root so the user can log in again
