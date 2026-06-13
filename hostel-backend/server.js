@@ -14,10 +14,17 @@ const app = express();
 // In development, allow all origins. In production, restrict to the deployed
 // frontend URL (set FRONTEND_URL in your Vercel backend env variables).
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [
-      process.env.FRONTEND_URL,
-      // Add additional allowed origins here if needed (e.g. preview deployments)
-    ].filter(Boolean)
+  ? (origin, callback) => {
+      // Allow the configured frontend URL + any vercel.app preview deployment
+      const allowed = [
+        process.env.FRONTEND_URL,
+      ].filter(Boolean);
+      if (!origin || allowed.some(o => origin.startsWith(o)) || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
   : true; // allow all in development
 
 app.use(cors({
