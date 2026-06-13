@@ -180,9 +180,9 @@ npx next start -p 3002
 
 | Role | Email | Password |
 |---|---|---|
-| Student | `student@campusstay.com` | `password` |
-| Warden | `warden@campusstay.com` | `password` |
-| Admin | `admin@campusstay.com` | `password` |
+| Student | `student@campusstay.com` | `student123` |
+| Warden | `warden@campusstay.com` | `warden123` |
+| Admin | `admin@campusstay.com` | `admin123` |
 
 > All portals are accessible from one URL. The **Student Portal** is the default landing page. Other portals are linked in the footer of the student login screen.
 
