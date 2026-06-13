@@ -18,13 +18,23 @@ import {
   Clock,
   ShieldCheck,
   Scan,
-  Info
+  Info,
+  Copy,
+  CheckCheck
 } from 'lucide-react';
 
 export default function GatePassDetails() {
   const [passes, setPasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePass, setActivePass] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const copyQrCode = (code) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   useEffect(() => {
     async function fetchPasses() {
@@ -109,7 +119,7 @@ export default function GatePassDetails() {
                         <div className="p-6 bg-white border-2 border-slate-100 rounded-[2rem] shadow-sm flex items-center justify-center">
                           <QRCodeSVG value={activePass.qr_code} size={150} />
                         </div>
-                        <div className="text-center">
+                        <div className="text-center w-full">
                           <span className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-full border ${
                             activePass.used 
                               ? 'bg-slate-50 text-slate-500 border-slate-100'
@@ -117,7 +127,25 @@ export default function GatePassDetails() {
                           }`}>
                             {activePass.used ? 'Used Pass' : 'Active Pass'}
                           </span>
-                          <p className="text-xs text-slate-400 mt-2 font-bold">ID: {activePass.qr_code}</p>
+
+                          {/* Copyable QR Code String */}
+                          <div className="mt-4 w-full">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Gate Pass Code</p>
+                            <div className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3">
+                              <code className="flex-1 text-xs font-mono text-indigo-300 break-all text-left">{activePass.qr_code}</code>
+                              <button
+                                onClick={() => copyQrCode(activePass.qr_code)}
+                                title="Copy code"
+                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-indigo-600 transition-colors cursor-pointer"
+                              >
+                                {copied
+                                  ? <CheckCheck className="w-4 h-4 text-emerald-400" />
+                                  : <Copy className="w-4 h-4 text-slate-400" />
+                                }
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-2 font-medium">Copy &amp; paste this code at the Gate Kiosk scanner</p>
+                          </div>
                         </div>
                       </div>
 
@@ -276,7 +304,7 @@ export default function GatePassDetails() {
                     <div className="w-6 h-6 flex-shrink-0 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
                       <Scan className="w-3.5 h-3.5" />
                     </div>
-                    <p className="text-sm text-slate-600 font-medium">AI verification failure requires <span class="text-slate-900 font-bold">Manual Register</span> entry.</p>
+                    <p className="text-sm text-slate-600 font-medium">AI verification failure requires <span className="text-slate-900 font-bold">Manual Register</span> entry.</p>
                   </li>
                   <li className="flex gap-3">
                     <div className="w-6 h-6 flex-shrink-0 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">

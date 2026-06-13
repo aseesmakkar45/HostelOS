@@ -199,7 +199,7 @@ export default function WardenDashboard() {
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assigned To</p>
                           <p className="text-xs font-bold text-slate-700">Robert (Maint.)</p>
                         </div>
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Robert" class="w-8 h-8 rounded-full bg-slate-200" alt="avatar" />
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Robert" className="w-8 h-8 rounded-full bg-slate-200" alt="avatar" />
                       </div>
                     </div>
                   ) : (
@@ -284,16 +284,16 @@ export default function WardenDashboard() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Collections (Monthly)</p>
-                    <p className="text-4xl font-extrabold">$42,850.00</p>
+                    <p className="text-4xl font-extrabold">₹4,28,500</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
                       <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Paid</p>
-                      <p className="text-lg font-bold">$38.2k</p>
+                      <p className="text-lg font-bold">₹3,82,000</p>
                     </div>
                     <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
                       <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Pending</p>
-                      <p className="text-lg font-bold">$4.6k</p>
+                      <p className="text-lg font-bold">₹46,500</p>
                     </div>
                   </div>
                   <button 

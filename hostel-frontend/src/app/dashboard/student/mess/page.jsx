@@ -24,6 +24,7 @@ export default function MessManagement() {
   const [coupons, setCoupons] = useState(42);
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activePlan, setActivePlan] = useState('Deluxe');
 
   // We can load menu dynamically or use fallback seed
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function MessManagement() {
       try {
         // Normally GET /api/admin/mess would load the mess menu
         // But since this is student view, let's fetch a list if it exists, or use clean fallbacks.
-        const response = await axios.get('/admin/mess').catch(() => null);
+        const response = await axios.get('/student/mess').catch(() => null);
         if (response && response.data.success) {
           setWeeklyMenu(response.data.data);
         }
@@ -205,9 +206,9 @@ export default function MessManagement() {
                 <h2 className="text-xl font-extrabold text-slate-800 mb-8">Meal Plan Comparison</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Basic */}
-                  <div className="p-6 rounded-3xl border border-slate-100 flex flex-col h-full bg-slate-50/50">
+                  <div className={`p-6 rounded-3xl border flex flex-col h-full ${activePlan === 'Basic' ? 'border-2 border-indigo-600 bg-indigo-50/30' : 'border-slate-100 bg-slate-50/50'}`}>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Basic Plan</p>
-                    <p class="text-2xl font-extrabold text-slate-800 mb-4">$180<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+                    <p className="text-2xl font-extrabold text-slate-800 mb-4">₹2,500<span className="text-sm text-slate-400 font-normal">/mo</span></p>
                     <ul className="space-y-3 mb-8 flex-1">
                       <li className="flex items-center gap-2 text-xs text-slate-600">
                         <Check className="w-4 h-4 text-emerald-500" /> Breakfast & Dinner
@@ -219,19 +220,23 @@ export default function MessManagement() {
                         <X className="w-4 h-4 text-rose-400" /> Weekend Meals
                       </li>
                     </ul>
-                    <button 
-                      onClick={() => alert('Plan modified to Basic.')}
-                      className="w-full py-3 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
-                    >
-                      Downgrade
-                    </button>
+                    {activePlan === 'Basic' ? (
+                      <button disabled className="w-full py-3 bg-slate-200 text-slate-400 text-sm font-bold rounded-xl cursor-not-allowed">Active</button>
+                    ) : (
+                      <button 
+                        onClick={() => { setActivePlan('Basic'); alert('Plan modified to Basic.'); }}
+                        className="w-full py-3 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
+                      >
+                        Downgrade
+                      </button>
+                    )}
                   </div>
 
                   {/* Deluxe */}
-                  <div className="p-6 rounded-3xl border-2 border-indigo-600 flex flex-col h-full relative bg-indigo-50/30 shadow-lg shadow-indigo-50">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full">Current Plan</div>
+                  <div className={`p-6 rounded-3xl border flex flex-col h-full relative ${activePlan === 'Deluxe' ? 'border-2 border-indigo-600 bg-indigo-50/30' : 'border-slate-100 bg-slate-50/50'}`}>
+                    {activePlan === 'Deluxe' && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full">Current Plan</div>}
                     <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2">Deluxe Plan</p>
-                    <p className="text-2xl font-extrabold text-slate-800 mb-4">$250<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+                    <p className="text-2xl font-extrabold text-slate-800 mb-4">₹3,500<span className="text-sm text-slate-400 font-normal">/mo</span></p>
                     <ul className="space-y-3 mb-8 flex-1">
                       <li className="flex items-center gap-2 text-xs text-slate-600">
                         <Check className="w-4 h-4 text-emerald-500" /> All 4 Meals (Snacks incl)
@@ -243,13 +248,22 @@ export default function MessManagement() {
                         <Check className="w-4 h-4 text-emerald-500" /> Nutrition Tracking
                       </li>
                     </ul>
-                    <button disabled className="w-full py-3 bg-slate-200 text-slate-400 text-sm font-bold rounded-xl cursor-not-allowed">Active</button>
+                    {activePlan === 'Deluxe' ? (
+                      <button disabled className="w-full py-3 bg-slate-200 text-slate-400 text-sm font-bold rounded-xl cursor-not-allowed">Active</button>
+                    ) : (
+                      <button 
+                        onClick={() => { setActivePlan('Deluxe'); alert('Plan modified to Deluxe.'); }}
+                        className="w-full py-3 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
+                      >
+                        Select Deluxe
+                      </button>
+                    )}
                   </div>
 
                   {/* Premium */}
-                  <div className="p-6 rounded-3xl border border-slate-100 flex flex-col h-full bg-slate-50/50">
+                  <div className={`p-6 rounded-3xl border flex flex-col h-full ${activePlan === 'Premium' ? 'border-2 border-indigo-600 bg-indigo-50/30' : 'border-slate-100 bg-slate-50/50'}`}>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Premium Plan</p>
-                    <p className="text-2xl font-extrabold text-slate-800 mb-4">$320<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+                    <p className="text-2xl font-extrabold text-slate-800 mb-4">₹4,500<span className="text-sm text-slate-400 font-normal">/mo</span></p>
                     <ul className="space-y-3 mb-8 flex-1">
                       <li className="flex items-center gap-2 text-xs text-slate-600">
                         <Check className="w-4 h-4 text-emerald-500" /> Everything in Deluxe
@@ -261,12 +275,16 @@ export default function MessManagement() {
                         <Check className="w-4 h-4 text-emerald-500" /> Priority Service
                       </li>
                     </ul>
-                    <button 
-                      onClick={() => alert('Plan modified to Premium.')}
-                      className="w-full py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all cursor-pointer"
-                    >
-                      Upgrade Plan
-                    </button>
+                    {activePlan === 'Premium' ? (
+                      <button disabled className="w-full py-3 bg-slate-200 text-slate-400 text-sm font-bold rounded-xl cursor-not-allowed">Active</button>
+                    ) : (
+                      <button 
+                        onClick={() => { setActivePlan('Premium'); alert('Plan modified to Premium.'); }}
+                        className="w-full py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all cursor-pointer"
+                      >
+                        Upgrade Plan
+                      </button>
+                    )}
                   </div>
                 </div>
               </section>
@@ -279,7 +297,7 @@ export default function MessManagement() {
                 <div className="space-y-6">
                   <div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Active Plan</p>
-                    <p className="text-lg font-bold text-indigo-600">Deluxe Quarterly</p>
+                    <p className="text-lg font-bold text-indigo-600">{activePlan} Quarterly</p>
                   </div>
                   <div className="flex justify-between items-end">
                     <div className="space-y-1">
@@ -288,7 +306,7 @@ export default function MessManagement() {
                     </div>
                     <div className="text-right">
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Last Paid</p>
-                      <p className="text-sm font-bold text-slate-700">$250.00 (Sept 01)</p>
+                      <p className="text-sm font-bold text-slate-700">₹3,500.00 (Sept 01)</p>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -309,19 +327,19 @@ export default function MessManagement() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-slate-50">
                     <span className="text-sm text-slate-500 font-medium">Cost per Meal</span>
-                    <span className="text-sm font-bold text-slate-800">$4.50</span>
+                    <span className="text-sm font-bold text-slate-800">₹80.00</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-slate-50">
                     <span className="text-sm text-slate-500 font-medium">Monthly Maintenance</span>
-                    <span className="text-sm font-bold text-slate-800">$25.00</span>
+                    <span className="text-sm font-bold text-slate-800">₹500.00</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-slate-50">
                     <span className="text-sm text-slate-500 font-medium">Festival Surplus</span>
-                    <span className="text-sm font-bold text-slate-800">$12.00</span>
+                    <span className="text-sm font-bold text-slate-800">₹200.00</span>
                   </div>
                   <div className="flex justify-between items-center pt-2">
                     <span className="text-sm font-bold text-slate-800">Total Monthly</span>
-                    <span className="text-lg font-extrabold text-indigo-600">$250.00</span>
+                    <span className="text-lg font-extrabold text-indigo-600">₹3,500.00</span>
                   </div>
                 </div>
               </section>

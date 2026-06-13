@@ -83,7 +83,7 @@ export default function FinancialLogs() {
   });
 
   const sendFeeReminder = (name, amount) => {
-    alert(`Reminder for payment of $${amount} sent to student ${name} and their registered parent.`);
+    alert(`Reminder for payment of ₹${amount} sent to student ${name} and their registered parent.`);
   };
 
   return (
@@ -120,7 +120,7 @@ export default function FinancialLogs() {
             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm card-hover">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gross Target</p>
               <div className="flex items-end justify-between mt-2">
-                <h3 className="text-2xl font-black text-slate-900">${stats.totalBilled?.toLocaleString()}</h3>
+                <h3 className="text-2xl font-black text-slate-900">₹{stats.totalBilled?.toLocaleString('en-IN')}</h3>
                 <span className="text-xs font-bold text-indigo-500">100% Total</span>
               </div>
               <div className="w-full h-1.5 bg-slate-100 rounded-full mt-4">
@@ -131,7 +131,7 @@ export default function FinancialLogs() {
             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm card-hover">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Collections Received</p>
               <div className="flex items-end justify-between mt-2">
-                <h3 className="text-2xl font-black text-slate-900">${stats.totalPaid?.toLocaleString()}</h3>
+                <h3 className="text-2xl font-black text-slate-900">₹{stats.totalPaid?.toLocaleString('en-IN')}</h3>
                 <span className="text-xs font-bold text-emerald-500">{stats.paidPercentage}% Paid</span>
               </div>
               <div className="w-full h-1.5 bg-slate-100 rounded-full mt-4">
@@ -142,7 +142,7 @@ export default function FinancialLogs() {
             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm card-hover">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Outstanding Dues</p>
               <div className="flex items-end justify-between mt-2">
-                <h3 className="text-2xl font-black text-slate-900">${stats.totalPending?.toLocaleString()}</h3>
+                <h3 className="text-2xl font-black text-slate-900">₹{stats.totalPending?.toLocaleString('en-IN')}</h3>
                 <span className="text-xs font-bold text-amber-500">{100 - stats.paidPercentage}% Dues</span>
               </div>
               <div className="w-full h-1.5 bg-slate-100 rounded-full mt-4">
@@ -228,7 +228,7 @@ export default function FinancialLogs() {
                                 </div>
                               </div>
                             </td>
-                            <td className="py-4 font-bold text-slate-800 text-sm">${fee.amount?.toLocaleString()}</td>
+                            <td className="py-4 font-bold text-slate-800 text-sm">₹{fee.amount?.toLocaleString('en-IN')}</td>
                             <td className="py-4">
                               <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full uppercase ${getStatusClass(fee.status)}`}>
                                 {fee.status}

@@ -14,21 +14,32 @@ import {
   Phone,
   Calendar,
   Briefcase,
-  TrendingUp
+  TrendingUp,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function Sidebar({
   activeItem = 'dashboard',
   dashboardHref = '/dashboard/student',
-  accommodationHref = '#accommodation',
-  paymentsHref = '#payments',
+  accommodationHref = '/dashboard/student/accommodation',
+  paymentsHref = '/dashboard/student/payments',
+  messHref = '/dashboard/student/mess',
+  leavesHref = '/dashboard/student/leaves',
   servicesHref = '/dashboard/student/complaints',
-  visitorsHref = '#visitors',
+  visitorsHref = '/dashboard/student/visitors',
   passHref = '/dashboard/student/gatepass',
   role = 'student',
-  onEmergencyCall = () => alert('Calling Warden at +91 98765 43210')
+  onEmergencyCall = null
 }) {
   const pathname = usePathname();
+
+  const helpConfig = role === 'warden'
+    ? { label: 'Call Admin', description: 'Contact the hostel admin for urgent matters.', number: '+91 98765 43200' }
+    : role === 'admin'
+    ? { label: 'Call Support', description: 'Contact IT support for technical assistance.', number: '+91 98765 43222' }
+    : { label: 'Call Warden', description: 'Contact hostel warden for urgent assistance.', number: '+91 98765 43210' };
+
+  const handleCall = onEmergencyCall || (() => alert(`Calling ${helpConfig.label} at ${helpConfig.number}`));
 
   // Highlight based on either prop or active path
   const checkActive = (item, href) => {
@@ -40,9 +51,12 @@ export default function Sidebar({
     { name: 'Dashboard', key: 'dashboard', href: dashboardHref, icon: LayoutDashboard },
     { name: 'Accommodation', key: 'accommodation', href: accommodationHref, icon: Bed },
     { name: 'Payments', key: 'payments', href: paymentsHref, icon: CreditCard },
-    { name: 'Support & Desk', key: 'services', href: servicesHref, icon: Wrench },
+    { name: 'Mess & Menu', key: 'mess', href: messHref, icon: Building2 },
+    { name: 'Leave Requests', key: 'leaves', href: leavesHref, icon: Calendar },
     { name: 'Visitor Management', key: 'visitors', href: visitorsHref, icon: Users },
     { name: 'Digital Gate Pass', key: 'pass', href: passHref, icon: QrCode },
+    { name: 'Face ID Setup', key: 'faceid', href: '/dashboard/student/faceid', icon: ShieldCheck },
+    { name: 'Support & Desk', key: 'services', href: servicesHref, icon: Wrench },
   ];
 
   const wardenLinks = [
@@ -50,10 +64,8 @@ export default function Sidebar({
     { name: 'Rooms', key: 'rooms', href: '/dashboard/warden/rooms', icon: Bed },
     { name: 'Residents', key: 'residents', href: '/dashboard/warden/residents', icon: Users },
     { name: 'Complaints', key: 'complaints', href: '/dashboard/warden/complaints', icon: Wrench },
-    { name: 'Fees', key: 'fees', href: '/dashboard/warden/fees', icon: CreditCard },
     { name: 'Visitor Passes', key: 'passes', href: '/dashboard/warden/passes', icon: QrCode },
     { name: 'Leaves', key: 'leaves', href: '/dashboard/warden/leaves', icon: Calendar },
-    { name: 'Staff', key: 'staff', href: '/dashboard/warden/staff', icon: Briefcase },
     { name: 'AI Analytics', key: 'analytics', href: '/dashboard/warden/analytics', icon: TrendingUp },
   ];
 
@@ -61,6 +73,7 @@ export default function Sidebar({
     { name: 'Dashboard', key: 'dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
     { name: 'Students', key: 'students', href: '/dashboard/admin/students', icon: Users },
     { name: 'Fees', key: 'fees', href: '/dashboard/admin/fees', icon: CreditCard },
+    { name: 'Staff', key: 'staff', href: '/dashboard/admin/staff', icon: Briefcase },
     { name: 'Mess', key: 'mess', href: '/dashboard/admin/mess', icon: Building2 },
     { name: 'Report', key: 'report', href: '/dashboard/admin/report', icon: QrCode },
   ];
@@ -103,13 +116,13 @@ export default function Sidebar({
         <div className="bg-slate-900 rounded-2xl p-5 text-white relative overflow-hidden">
           <div className="relative z-10">
             <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Need Help?</p>
-            <p className="text-sm mb-4 font-light">Contact hostel warden for urgent assistance.</p>
+            <p className="text-sm mb-4 font-light">{helpConfig.description}</p>
             <button
-              onClick={onEmergencyCall}
+              onClick={handleCall}
               className="w-full bg-indigo-500 hover:bg-indigo-400 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <Phone className="w-4 h-4" />
-              Call Warden
+              {helpConfig.label}
             </button>
           </div>
           <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/20 rounded-full blur-xl"></div>

@@ -42,11 +42,15 @@ export default function VisitorPassQueue() {
 
   const handleAction = async (id, action) => {
     try {
-      // Simulate state update
-      setPasses(prev => prev.map(p => p.id === id ? { ...p, status: action === 'approve' ? 'Approved' : 'Rejected' } : p));
-      alert(`Pass has been successfully ${action === 'approve' ? 'Approved' : 'Rejected'}.`);
+      const status = action === 'approve' ? 'Approved' : 'Rejected';
+      const response = await axios.patch(`/warden/pass/${id}`, { status });
+      if (response.data.success) {
+        setPasses(prev => prev.map(p => p.id === id ? { ...p, status } : p));
+        alert(`Pass has been successfully ${status}.`);
+      }
     } catch (err) {
       console.error(err);
+      alert('Failed to update visitor pass status.');
     }
   };
 

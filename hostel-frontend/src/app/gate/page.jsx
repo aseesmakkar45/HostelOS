@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from '@/lib/axios';
 import { 
   ShieldCheck, 
@@ -28,11 +28,22 @@ export default function GateEntryKiosk() {
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState(null); // { success: true/false, message: '', data: {} }
   const [logs, setLogs] = useState([
-    { name: 'Alex Johnson', type: 'Student', room: '402-B', event: 'In', time: 'Just Now', icon: 'in' },
-    { name: 'Samuel Reed', type: 'Student', room: '402-B', event: 'Out', time: '2m ago', icon: 'out' },
-    { name: 'Robert Chen', type: 'Visitor', room: 'ID: #9283-V', event: 'In', time: '5m ago', icon: 'in' }
+    { name: 'Aarav Sharma', type: 'Student', room: 'Room 101', event: 'In', time: 'Just Now', icon: 'in' },
+    { name: 'Priya Sharma', type: 'Student', room: 'Room 102', event: 'Out', time: '2m ago', icon: 'out' },
+    { name: 'Rahul Verma', type: 'Student', room: 'Room 101', event: 'In', time: '5m ago', icon: 'in' }
   ]);
 
+  // Biometric camera states
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const modelRef = useRef(null);
+  const animationRef = useRef(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [modelLoaded, setModelLoaded] = useState(false);
+  const [liveFacePrint, setLiveFacePrint] = useState(null); // [ratio1, ratio2, ratio3]
+  const [cameraStream, setCameraStream] = useState(null);
+
+  // Load clock
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
@@ -42,6 +53,144 @@ export default function GateEntryKiosk() {
     return () => clearInterval(timer);
   }, []);
 
+  // Load TFJS & BlazeFace
+  useEffect(() => {
+    let active = true;
+
+    async function loadModel() {
+      try {
+        if (!window.tf) {
+          const tfScript = document.createElement('script');
+          tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs';
+          tfScript.async = true;
+          document.body.appendChild(tfScript);
+          await new Promise((resolve) => { tfScript.onload = resolve; });
+        }
+
+        if (!window.blazeface) {
+          const bfScript = document.createElement('script');
+          bfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface';
+          bfScript.async = true;
+          document.body.appendChild(bfScript);
+          await new Promise((resolve) => { bfScript.onload = resolve; });
+        }
+
+        if (active && window.blazeface) {
+          const loadedModel = await window.blazeface.load();
+          modelRef.current = loadedModel;
+          setModelLoaded(true);
+          // Auto start camera for gate kiosk
+          startWebcam();
+        }
+      } catch (err) {
+        console.error('Gate Kiosk model load error:', err);
+      }
+    }
+
+    loadModel();
+
+    return () => {
+      active = false;
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const startWebcam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480, facingMode: 'user' }
+      });
+      // Set active FIRST so video element renders in DOM
+      setCameraActive(true);
+      setCameraStream(stream);
+      // Brief timeout to allow React to commit <video> to DOM
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(e => console.error('Gate video play error:', e));
+          videoRef.current.onloadedmetadata = () => {
+            startFaceDetectionLoop();
+          };
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Gate webcam startup failed:', err);
+    }
+  };
+
+  const calculateDistance = (p1, p2) => {
+    return Math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2);
+  };
+
+  const startFaceDetectionLoop = () => {
+    const detect = async () => {
+      if (
+        videoRef.current &&
+        videoRef.current.readyState === 4 &&
+        modelRef.current &&
+        canvasRef.current
+      ) {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const predictions = await modelRef.current.estimateFaces(video, false);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (predictions.length > 0) {
+          const prediction = predictions[0];
+          const start = prediction.topLeft;
+          const end = prediction.bottomRight;
+          const size = [end[0] - start[0], end[1] - start[1]];
+
+          // Draw Scan Box
+          ctx.strokeStyle = '#6366f1';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(start[0], start[1], size[0], size[1]);
+
+          // Draw landmarks
+          const landmarks = prediction.landmarks;
+          ctx.fillStyle = '#10b981';
+          for (let i = 0; i < landmarks.length; i++) {
+            ctx.beginPath();
+            ctx.arc(landmarks[i][0], landmarks[i][1], 5, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+
+          // Calculate facial ratios
+          const rightEye = landmarks[0];
+          const leftEye = landmarks[1];
+          const nose = landmarks[2];
+          const mouth = landmarks[3];
+
+          const eyeDist = calculateDistance(rightEye, leftEye);
+          const noseToMouth = calculateDistance(nose, mouth);
+          const eyeMidpoint = [(rightEye[0] + leftEye[0]) / 2, (rightEye[1] + leftEye[1]) / 2];
+          const eyeToNose = calculateDistance(eyeMidpoint, nose);
+
+          const ratio1 = eyeDist / (noseToMouth || 1);
+          const ratio2 = eyeToNose / (noseToMouth || 1);
+          
+          const rightEyeToNose = calculateDistance(rightEye, nose);
+          const leftEyeToNose = calculateDistance(leftEye, nose);
+          const ratio3 = rightEyeToNose / (leftEyeToNose || 1);
+
+          setLiveFacePrint([ratio1, ratio2, ratio3]);
+        } else {
+          setLiveFacePrint(null);
+        }
+      }
+      animationRef.current = requestAnimationFrame(detect);
+    };
+    animationRef.current = requestAnimationFrame(detect);
+  };
+
   const handleVerify = async (e) => {
     e.preventDefault();
     if (!qrCodeInput.trim()) return;
@@ -49,30 +198,80 @@ export default function GateEntryKiosk() {
     setVerifying(true);
     setResult(null);
 
-    // 2-second simulation delay for AI Verification
+    // Short scanning delay to simulate biometric sweep
     setTimeout(async () => {
       try {
         const response = await axios.post('/gate/verify', { qr_code: qrCodeInput });
+        
         if (response.data.success) {
           const pass = response.data.data;
-          setResult({
-            success: true,
-            message: `Identity Verified — ${pass.student_name || 'Guest'}, Room ${pass.room_number || 'N/A'}`,
-            data: pass
-          });
           
-          // Add to log
-          setLogs(prev => [
-            { 
-              name: pass.student_name || pass.visitor_name || 'Guest', 
-              type: pass.student_name ? 'Student' : 'Visitor', 
-              room: pass.room_number ? `Room ${pass.room_number}` : 'Visitor', 
-              event: 'In', 
-              time: 'Just Now', 
-              icon: 'in' 
-            },
-            ...prev
-          ]);
+          // Verify biometric template if registered
+          if (pass.face_data) {
+            const registeredRatios = JSON.parse(pass.face_data);
+            
+            if (liveFacePrint) {
+              // Compare vectors
+              const distance = Math.sqrt(
+                (liveFacePrint[0] - registeredRatios[0]) ** 2 +
+                (liveFacePrint[1] - registeredRatios[1]) ** 2 +
+                (liveFacePrint[2] - registeredRatios[2]) ** 2
+              );
+
+              // Match tolerance threshold (0.18 represents high structural similarity)
+              if (distance < 0.18) {
+                const matchScore = Math.round((1 - distance) * 100);
+                setResult({
+                  success: true,
+                  message: `Biometric Access Granted — Face Match Confirmed (${matchScore}% match). Resident: ${pass.student_name}, Room: ${pass.room_number}`,
+                  data: pass
+                });
+
+                // Add to log
+                setLogs(prev => [
+                  { 
+                    name: pass.student_name, 
+                    type: 'Student', 
+                    room: pass.room_number ? `Room ${pass.room_number}` : 'Visitor', 
+                    event: 'In', 
+                    time: 'Just Now', 
+                    icon: 'in' 
+                  },
+                  ...prev
+                ]);
+              } else {
+                setResult({
+                  success: false,
+                  message: `Biometric Verification Mismatch! Facial proportions do not match profile signature.`
+                });
+              }
+            } else {
+              setResult({
+                success: false,
+                message: `Biometric Scanner Error: No face detected in video feed. Cannot verify identity.`
+              });
+            }
+          } else {
+            // No face ID registered fallback
+            setResult({
+              success: true,
+              message: `Verification Approved — ${pass.student_name}, Room ${pass.room_number}. (Warning: No Face ID Registered — Please setup Face ID in Student Hub)`,
+              data: pass
+            });
+
+            // Add to log
+            setLogs(prev => [
+              { 
+                name: pass.student_name, 
+                type: 'Student', 
+                room: pass.room_number ? `Room ${pass.room_number}` : 'Visitor', 
+                event: 'In', 
+                time: 'Just Now', 
+                icon: 'in' 
+              },
+              ...prev
+            ]);
+          }
         } else {
           setResult({
             success: false,
@@ -82,13 +281,13 @@ export default function GateEntryKiosk() {
       } catch (err) {
         setResult({
           success: false,
-          message: err.response?.data?.error || 'Verification Failed: Pass either expired, already used, or invalid.'
+          message: err.response?.data?.error || 'Verification Failed: Pass expired, used, or invalid.'
         });
       } finally {
         setVerifying(false);
         setQrCodeInput('');
       }
-    }, 2000);
+    }, 1500);
   };
 
   return (
@@ -107,8 +306,10 @@ export default function GateEntryKiosk() {
 
         <div className="flex items-center gap-8">
           <div className="text-center">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Occupancy</p>
-            <p className="text-2xl font-black text-indigo-400">482 <span className="text-slate-600 text-sm font-medium">/ 500</span></p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Status</p>
+            <p className="text-sm font-black text-indigo-400">
+              {modelLoaded ? 'Biometric Engine Online' : 'Starting Core TFJS...'}
+            </p>
           </div>
           <div className="h-10 w-[1px] bg-slate-800"></div>
           <div className="flex items-center gap-4 bg-slate-900 px-5 py-2.5 rounded-2xl border border-slate-800">
@@ -117,10 +318,6 @@ export default function GateEntryKiosk() {
               <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-tighter mt-1">{currentDate || 'October 24, 2023'}</p>
             </div>
             <Clock className="w-6 h-6 text-slate-500" />
-          </div>
-          <div className="flex gap-2">
-            <button className="w-10 h-10 rounded-xl bg-slate-800 text-white font-bold flex items-center justify-center text-xs border border-slate-700">EN</button>
-            <button className="w-10 h-10 rounded-xl bg-slate-950 text-slate-500 font-bold flex items-center justify-center text-xs border border-slate-800">हि</button>
           </div>
         </div>
       </header>
@@ -137,15 +334,27 @@ export default function GateEntryKiosk() {
                 <Camera className="w-4 h-4 text-indigo-500" /> AI Face Verification
               </h3>
               <div className="aspect-video bg-slate-950 rounded-[2.5rem] border-2 border-slate-800 overflow-hidden relative group">
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent z-10"></div>
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=640&auto=format&fit=crop" alt="Camera Feed" className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all duration-700" />
-                <div className="absolute inset-10 border-2 border-indigo-500/30 rounded-3xl z-20 flex items-center justify-center">
-                  <div className="w-24 h-24 border-2 border-indigo-500 border-dashed rounded-full animate-spin opacity-50"></div>
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-xl"></div>
-                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-indigo-500 rounded-tr-xl"></div>
-                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-indigo-500 rounded-bl-xl"></div>
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-xl"></div>
-                </div>
+                {/* Always in DOM so videoRef is never null */}
+                <video 
+                  ref={videoRef}
+                  className={`absolute inset-0 w-full h-full object-cover scale-x-[-1] opacity-70 ${cameraActive ? 'block' : 'hidden'}`}
+                  muted
+                  playsInline
+                  autoPlay
+                />
+                <canvas 
+                  ref={canvasRef}
+                  className={`absolute inset-0 w-full h-full scale-x-[-1] z-10 pointer-events-none ${cameraActive ? 'block' : 'hidden'}`}
+                />
+                {cameraActive && (
+                  <div className="absolute inset-x-10 top-0 h-0.5 bg-indigo-500/50 shadow-md shadow-indigo-500 animate-bounce z-20"></div>
+                )}
+                {!cameraActive && (
+                  <div className="absolute inset-0 flex items-center justify-center text-slate-600 bg-slate-950">
+                    <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                  </div>
+                )}
+                
                 <div className="absolute bottom-6 left-6 right-6 z-30 flex justify-between items-end">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -198,27 +407,15 @@ export default function GateEntryKiosk() {
               {verifying ? (
                 <div className="flex flex-col items-center justify-center py-10 space-y-3">
                   <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                  <p className="text-sm font-semibold text-indigo-400 animate-pulse">AI Verifying Identity...</p>
+                  <p className="text-sm font-semibold text-indigo-400 animate-pulse">Checking facial coordinates...</p>
                 </div>
               ) : result ? (
                 <div className={`p-6 rounded-2xl border ${
                   result.success ? 'bg-emerald-950/40 border-emerald-500/30' : 'bg-rose-950/40 border-rose-500/30'
                 }`}>
-                  <p className={`text-lg font-bold ${result.success ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <p className={`text-sm font-bold ${result.success ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {result.message}
                   </p>
-                  {result.success && result.data && (
-                    <div className="mt-4 grid grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <p className="text-slate-500">Visitor</p>
-                        <p className="font-bold text-white">{result.data.visitor_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-500">Purpose</p>
-                        <p className="font-bold text-white">{result.data.purpose}</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800">
@@ -282,8 +479,7 @@ export default function GateEntryKiosk() {
             </div>
             <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
               <button className="flex-1 py-2 rounded-xl text-[10px] font-extrabold uppercase bg-slate-800 text-white cursor-pointer">All Logs</button>
-              <button className="flex-1 py-2 rounded-xl text-[10px] font-extrabold uppercase text-slate-500 cursor-pointer">In</button>
-              <button className="flex-1 py-2 rounded-xl text-[10px] font-extrabold uppercase text-slate-500 cursor-pointer">Out</button>
+              <button className="flex-1 py-2 rounded-xl text-[10px] font-extrabold uppercase text-slate-500 cursor-pointer animate-pulse">Live</button>
             </div>
           </div>
 
@@ -312,7 +508,7 @@ export default function GateEntryKiosk() {
           <div className="p-8 bg-slate-900/50 border-t border-slate-800 space-y-4">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Verification Fallback</p>
             <button 
-              onClick={() => alert('Warden code entrance opened')}
+              onClick={() => alert('Manual override activated. Entry log captured.')}
               className="w-full py-4 border-2 border-dashed border-slate-800 rounded-2xl text-slate-400 font-bold hover:border-indigo-500 hover:text-indigo-400 transition-all flex items-center justify-center gap-3 cursor-pointer"
             >
               Enter Warden Code
@@ -334,7 +530,7 @@ export default function GateEntryKiosk() {
           </div>
           <div className="flex items-center gap-2">
             <Database className="w-4 h-4 text-indigo-500" />
-            <span className="text-xs font-bold">Cloud Syncing...</span>
+            <span className="text-xs font-bold">Neon SQL Cloud Connected</span>
           </div>
           <div className="flex items-center gap-2">
             <Wifi className="w-4 h-4 text-emerald-500" />

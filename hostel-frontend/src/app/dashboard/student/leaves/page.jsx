@@ -308,7 +308,7 @@ export default function LeaveRequestPortal() {
                 <section className="space-y-6">
                   <div>
                     <h3 className="text-xl font-extrabold text-slate-800">Recent Leave History</h3>
-                    <p class="text-slate-400 text-sm font-medium">Track your past and pending applications.</p>
+                    <p className="text-slate-400 text-sm font-medium">Track your past and pending applications.</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {leaves.slice(0, 2).map((item) => (
@@ -392,7 +392,7 @@ export default function LeaveRequestPortal() {
                   </li>
                   <li className="flex gap-3">
                     <AlertTriangle className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" />
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">Late returns result in a <span className="text-rose-600 font-bold">$10 fine</span> per hour beyond curfew.</p>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">Late returns result in a <span className="text-rose-600 font-bold">₹100 fine</span> per hour beyond curfew.</p>
                   </li>
                 </ul>
               </section>

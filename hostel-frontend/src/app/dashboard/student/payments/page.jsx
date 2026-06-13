@@ -46,8 +46,36 @@ export default function PaymentHistory() {
     fetchFees();
   }, []);
 
-  const handlePayOutstanding = () => {
-    alert('Redirecting to payment gateway for $' + outstanding.toFixed(2));
+  const handlePayOutstanding = async () => {
+    const pendingFees = fees.filter(fee => fee.status === 'pending');
+    if (pendingFees.length === 0) {
+      alert('You have no outstanding dues!');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await Promise.all(
+        pendingFees.map(fee => axios.patch(`/student/fees/${fee.id}/pay`))
+      );
+
+      // Re-fetch fees
+      const response = await axios.get('/student/fees');
+      if (response.data.success) {
+        const fetchedFees = response.data.data;
+        setFees(fetchedFees);
+        const unpaidSum = fetchedFees
+          .filter(fee => fee.status === 'pending')
+          .reduce((sum, fee) => sum + parseFloat(fee.amount), 0);
+        setOutstanding(unpaidSum);
+      }
+      alert('All outstanding payments processed successfully!');
+    } catch (err) {
+      console.error('Error paying outstanding fees:', err);
+      alert('Failed to process payments.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getFeeIcon = (type) => {
@@ -132,7 +160,7 @@ export default function PaymentHistory() {
                 </div>
                 <div>
                   <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Yearly Paid</p>
-                  <p className="text-2xl font-extrabold text-slate-800">$5,240.00</p>
+                  <p className="text-2xl font-extrabold text-slate-800">₹13,500.00</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-emerald-500 text-sm font-bold">
@@ -170,7 +198,7 @@ export default function PaymentHistory() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr class="text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50">
+                      <tr className="text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-50">
                         <th className="pb-4 font-bold">Invoice Item</th>
                         <th className="pb-4 font-bold">Due Date</th>
                         <th className="pb-4 font-bold text-right">Amount</th>
@@ -280,7 +308,7 @@ export default function PaymentHistory() {
                   <h3 className="font-extrabold text-slate-800">Quick Tip</h3>
                 </div>
                 <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                  Setting up <span className="text-indigo-600 font-bold">Auto-Pay</span> ensures you never miss a deadline and avoid late fee penalties of $5/day.
+                  Setting up <span className="text-indigo-600 font-bold">Auto-Pay</span> ensures you never miss a deadline and avoid late fee penalties of ₹50/day.
                 </p>
               </section>
             </div>

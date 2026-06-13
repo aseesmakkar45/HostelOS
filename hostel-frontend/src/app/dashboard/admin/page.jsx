@@ -98,7 +98,7 @@ export default function AdminDashboard() {
                   <div className="bg-white p-6 rounded-[2rem] border border-slate-100 card-hover shadow-sm flex flex-col justify-between">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gross Revenue</p>
-                      <h3 className="text-2xl font-black text-slate-900 mt-2">${financeData?.totalRevenue?.toLocaleString()}.00</h3>
+                      <h3 className="text-2xl font-black text-slate-900 mt-2">₹{financeData?.totalRevenue?.toLocaleString('en-IN')}</h3>
                     </div>
                     <div className="flex items-center gap-1 mt-4 text-emerald-500 text-xs font-bold">
                       <ArrowUpRight className="w-4 h-4" />
@@ -109,7 +109,7 @@ export default function AdminDashboard() {
                   <div className="bg-white p-6 rounded-[2rem] border border-slate-100 card-hover shadow-sm flex flex-col justify-between">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Collections Cleared</p>
-                      <h3 className="text-2xl font-black text-slate-900 mt-2">${financeData?.revenuePaid?.toLocaleString()}.00</h3>
+                      <h3 className="text-2xl font-black text-slate-900 mt-2">₹{financeData?.revenuePaid?.toLocaleString('en-IN')}</h3>
                     </div>
                     <div className="flex items-center gap-1 mt-4 text-emerald-500 text-xs font-bold">
                       <CheckCircle className="w-4 h-4" />
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
                   <div className="bg-white p-6 rounded-[2rem] border border-slate-100 card-hover shadow-sm flex flex-col justify-between">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Outstanding Ledger</p>
-                      <h3 className="text-2xl font-black text-slate-900 mt-2">${financeData?.revenuePending?.toLocaleString()}.00</h3>
+                      <h3 className="text-2xl font-black text-slate-900 mt-2">₹{financeData?.revenuePending?.toLocaleString('en-IN')}</h3>
                     </div>
                     <div className="flex items-center gap-1 mt-4 text-amber-500 text-xs font-bold">
                       <Clock className="w-4 h-4" />
@@ -191,7 +191,7 @@ export default function AdminDashboard() {
                             <td className="py-4 text-xs font-semibold text-slate-500">{ledger.date}</td>
                             <td className="py-4 font-bold text-slate-800 text-sm">{ledger.name}</td>
                             <td className="py-4 text-xs font-semibold text-slate-600">{ledger.type}</td>
-                            <td className="py-4 font-bold text-slate-800 text-sm">${ledger.amount}</td>
+                            <td className="py-4 font-bold text-slate-800 text-sm">₹{Number(ledger.amount).toLocaleString('en-IN')}</td>
                             <td className="py-4">
                               <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full uppercase ${getStatusBadge(ledger.status)}`}>
                                 {ledger.status}
@@ -228,19 +228,19 @@ export default function AdminDashboard() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-400 font-semibold">Single Premium</span>
-                        <span className="font-extrabold">$1,800/mo</span>
+                        <span className="font-extrabold">₹15,000/mo</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-400 font-semibold">Double Sharing</span>
-                        <span className="font-extrabold">$1,200/mo</span>
+                        <span className="font-extrabold">₹12,000/mo</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-400 font-semibold">Triple Standard</span>
-                        <span className="font-extrabold">$900/mo</span>
+                        <span className="font-extrabold">₹7,500/mo</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-400 font-semibold">Mess Fee Core</span>
-                        <span className="font-extrabold">$350/mo</span>
+                        <span className="font-extrabold">₹3,500/mo</span>
                       </div>
                     </div>
 

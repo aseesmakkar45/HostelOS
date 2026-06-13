@@ -39,9 +39,18 @@ export default function LeaveRequestsQueue() {
     }
   };
 
-  const handleAction = (id, action) => {
-    setLeaves(prev => prev.map(item => item.id === id ? { ...item, status: action === 'approve' ? 'Approved' : 'Rejected' } : item));
-    alert(`Leave Request has been successfully ${action === 'approve' ? 'Approved' : 'Rejected'}.`);
+  const handleAction = async (id, action) => {
+    try {
+      const status = action === 'approve' ? 'Approved' : 'Rejected';
+      const response = await axios.patch(`/warden/leave/${id}`, { status });
+      if (response.data.success) {
+        setLeaves(prev => prev.map(item => item.id === id ? { ...item, status } : item));
+        alert(`Leave Request has been successfully ${status}.`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update leave request status.');
+    }
   };
 
   const getStatusClass = (status) => {
