@@ -10,29 +10,50 @@ const gateRoutes = require('./routes/gate.routes');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// ─── CORS ──────────────────────────────────────────────────────────────────────
+// In development, allow all origins. In production, restrict to the deployed
+// frontend URL (set FRONTEND_URL in your Vercel backend env variables).
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [
+      process.env.FRONTEND_URL,
+      // Add additional allowed origins here if needed (e.g. preview deployments)
+    ].filter(Boolean)
+  : true; // allow all in development
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
 app.use(express.json());
 
-// Routes mapping
+// ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/warden', wardenRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gate', gateRoutes);
 
-// Base route
+// Health check — Vercel and uptime monitors hit this
 app.get('/', (req, res) => {
-  res.json({ success: true, message: 'HostelOS API is running smoothly' });
+  res.json({
+    success: true,
+    message: 'HostelOS API is running',
+    env: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// Global error handling middleware
+// ─── Error handling ───────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ success: false, error: 'Internal Server Error' });
 });
 
+// ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
+
+module.exports = app; // needed for Vercel serverless export
