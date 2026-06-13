@@ -16,5 +16,6 @@ router.get('/stats', adminController.getStats);
 router.get('/report', adminController.getReport);
 router.get('/mess', adminController.getMess);
 router.post('/mess', adminController.updateMess);
+router.get('/rooms', adminController.getRooms);
 
 module.exports = router;

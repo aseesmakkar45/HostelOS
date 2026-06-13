@@ -210,10 +210,27 @@ const getReport = async (req, res) => {
        ORDER BY c.created_at DESC`
     );
 
-    const [studentsRes, feesRes, complaintsRes] = await Promise.all([
+    const leavesPromise = pool.query(
+      `SELECT u.name as student_name, l.from_date, l.to_date, l.reason, l.status, l.created_at
+       FROM leave_requests l
+       JOIN users u ON l.student_id = u.id
+       ORDER BY l.created_at DESC`
+    );
+
+    const gateLogsPromise = pool.query(
+      `SELECT u.name as student_name, gp.visitor_name, gp.purpose, gl.entry_time, gl.verified_by
+       FROM gate_logs gl
+       JOIN gate_passes gp ON gl.gate_pass_id = gp.id
+       JOIN users u ON gp.student_id = u.id
+       ORDER BY gl.entry_time DESC`
+    );
+
+    const [studentsRes, feesRes, complaintsRes, leavesRes, gateLogsRes] = await Promise.all([
       studentsPromise,
       feesPromise,
-      complaintsPromise
+      complaintsPromise,
+      leavesPromise,
+      gateLogsPromise
     ]);
 
     res.json({
@@ -221,7 +238,9 @@ const getReport = async (req, res) => {
       data: {
         students: studentsRes.rows,
         fees: feesRes.rows,
-        complaints: complaintsRes.rows
+        complaints: complaintsRes.rows,
+        leaves: leavesRes.rows,
+        gateLogs: gateLogsRes.rows
       }
     });
   } catch (err) {
@@ -284,6 +303,17 @@ const updateMess = async (req, res) => {
   }
 };
 
+// GET /api/admin/rooms
+const getRooms = async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM rooms ORDER BY room_number');
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Admin get rooms error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
 module.exports = {
   getStudents,
   allocateRoom,
@@ -293,5 +323,6 @@ module.exports = {
   getStats,
   getReport,
   getMess,
-  updateMess
+  updateMess,
+  getRooms
 };
