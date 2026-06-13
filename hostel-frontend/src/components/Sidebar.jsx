@@ -15,8 +15,10 @@ import {
   Calendar,
   Briefcase,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Sidebar({
   activeItem = 'dashboard',
@@ -32,6 +34,7 @@ export default function Sidebar({
   onEmergencyCall = null
 }) {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   const helpConfig = role === 'warden'
     ? { label: 'Call Admin', description: 'Contact the hostel admin for urgent matters.', number: '+91 98765 43200' }
@@ -110,6 +113,13 @@ export default function Sidebar({
             </Link>
           );
         })}
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-rose-600 hover:bg-rose-50 font-semibold cursor-pointer mt-4"
+        >
+          <LogOut className="w-5 h-5" />
+          Logout
+        </button>
       </nav>
 
       <div className="p-4 mt-auto">

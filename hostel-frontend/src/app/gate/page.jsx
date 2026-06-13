@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   ShieldCheck, 
   Clock, 
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function GateEntryKiosk() {
+  const { logout } = useAuth();
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [qrCodeInput, setQrCodeInput] = useState('');
@@ -319,6 +321,13 @@ export default function GateEntryKiosk() {
             </div>
             <Clock className="w-6 h-6 text-slate-500" />
           </div>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 bg-rose-950/40 border border-rose-800/40 text-rose-400 px-4 py-2.5 rounded-2xl text-xs font-bold hover:bg-rose-900 hover:text-white transition-all cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
         </div>
       </header>
 
