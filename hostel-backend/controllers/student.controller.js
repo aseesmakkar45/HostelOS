@@ -209,4 +209,27 @@ const payFee = async (req, res) => {
   }
 };
 
-module.exports = { getRoom, getFees, createComplaint, getComplaints, createLeave, getLeaves, createGatePass, getGatePasses, getMess, payFee };
+const registerFace = async (req, res) => {
+  try {
+    const { face_data } = req.body;
+    if (!face_data) {
+      return res.status(400).json({ success: false, error: 'Face data is required' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET face_data = $1 WHERE id = $2 RETURNING id, name, email',
+      [face_data, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Student profile not found' });
+    }
+
+    res.json({ success: true, message: 'Face ID registered successfully', data: result.rows[0] });
+  } catch (err) {
+    console.error('Register face error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error during Face ID registration' });
+  }
+};
+
+module.exports = { getRoom, getFees, createComplaint, getComplaints, createLeave, getLeaves, createGatePass, getGatePasses, getMess, payFee, registerFace };
