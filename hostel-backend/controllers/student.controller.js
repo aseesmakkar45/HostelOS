@@ -161,4 +161,52 @@ const getGatePasses = async (req, res) => {
   }
 };
 
-module.exports = { getRoom, getFees, createComplaint, getComplaints, createLeave, getLeaves, createGatePass, getGatePasses };
+const getMess = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM mess_menu 
+       ORDER BY 
+         CASE 
+           WHEN day='Monday' THEN 1 
+           WHEN day='Tuesday' THEN 2 
+           WHEN day='Wednesday' THEN 3 
+           WHEN day='Thursday' THEN 4 
+           WHEN day='Friday' THEN 5 
+           WHEN day='Saturday' THEN 6 
+           WHEN day='Sunday' THEN 7 
+           ELSE 8 
+         END, 
+         CASE 
+           WHEN meal_type='breakfast' THEN 1 
+           WHEN meal_type='lunch' THEN 2 
+           WHEN meal_type='dinner' THEN 3 
+           ELSE 4 
+         END`
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Student get mess menu error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
+const payFee = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      "UPDATE fees SET status = 'paid', paid_at = NOW() WHERE id = $1 AND student_id = $2 RETURNING *",
+      [id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Fee record not found or unauthorized' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Pay fee error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
+module.exports = { getRoom, getFees, createComplaint, getComplaints, createLeave, getLeaves, createGatePass, getGatePasses, getMess, payFee };

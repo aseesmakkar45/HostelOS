@@ -15,5 +15,7 @@ router.post('/leave', studentController.createLeave);
 router.get('/leaves', studentController.getLeaves);
 router.post('/gatepass', studentController.createGatePass);
 router.get('/gatepasses', studentController.getGatePasses);
+router.get('/mess', studentController.getMess);
+router.patch('/fees/:id/pay', studentController.payFee);
 
 module.exports = router;
