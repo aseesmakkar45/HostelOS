@@ -17,5 +17,6 @@ router.post('/gatepass', studentController.createGatePass);
 router.get('/gatepasses', studentController.getGatePasses);
 router.get('/mess', studentController.getMess);
 router.patch('/fees/:id/pay', studentController.payFee);
+router.post('/register-face', studentController.registerFace);
 
 module.exports = router;
