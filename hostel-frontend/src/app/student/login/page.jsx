@@ -190,9 +190,9 @@ export default function StudentLogin() {
             {/* Social Proof */}
             <div className="flex items-center gap-4 p-4 bg-white/10 backdrop-blur-md rounded-[1.8rem] border border-white/10 mt-6 shadow-xl">
               <div className="flex -space-x-3">
-                <img className="h-8 w-8 rounded-full ring-2 ring-indigo-500 bg-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="avatar" />
-                <img className="h-8 w-8 rounded-full ring-2 ring-indigo-500 bg-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" alt="avatar" />
-                <img className="h-8 w-8 rounded-full ring-2 ring-indigo-500 bg-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Michael" alt="avatar" />
+                <img className="h-8 w-8 rounded-full ring-2 ring-indigo-500 bg-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Aarav" alt="avatar" />
+                <img className="h-8 w-8 rounded-full ring-2 ring-indigo-500 bg-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Priya" alt="avatar" />
+                <img className="h-8 w-8 rounded-full ring-2 ring-indigo-500 bg-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Rahul" alt="avatar" />
               </div>
               <p className="text-xs font-bold tracking-wide">Join 5,000+ students living better.</p>
             </div>

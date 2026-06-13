@@ -16,10 +16,10 @@ export default function Navbar({
   const { user, logout } = useAuth() || {};
 
   // Resolve user info from context if authenticated, else fallback to props
-  const userFirstName = user ? user.name.split(' ')[0] : (propUserFirstName || 'Alex');
-  const userName = user ? user.name : (propUserName || 'Alex Johnson');
-  const userRoom = user?.room_number ? `Room ${user.room_number}` : (propUserRoom || 'Room 402-B');
-  const userAvatar = user ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}` : (propUserAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex');
+  const userFirstName = user ? user.name.split(' ')[0] : (propUserFirstName || 'Aarav');
+  const userName = user ? user.name : (propUserName || 'Aarav Sharma');
+  const userRoom = user?.room_number ? `Room ${user.room_number}` : (propUserRoom || 'Room 101');
+  const userAvatar = user ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}` : (propUserAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Aarav');
 
   const handleLogout = () => {
     if (logout) {

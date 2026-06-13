@@ -59,7 +59,7 @@ export default function AccommodationDetails() {
   };
 
   const roommates = roomData?.roommates || [
-    { name: 'Samuel Reed', email: 'sam.r@university.edu', phone: '+1 234-567-890' }
+    { name: 'Sameer Gupta', email: 'sameer.g@university.edu', phone: '+91 98765 43210' }
   ];
 
   return (

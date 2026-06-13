@@ -130,7 +130,7 @@ export default function PaymentHistory() {
             <div className="lg:col-span-2 bg-gradient-to-r from-indigo-500 to-purple-600 p-8 rounded-[2.5rem] text-white flex flex-col md:flex-row justify-between items-center shadow-xl shadow-indigo-200">
               <div className="mb-6 md:mb-0">
                 <p className="text-indigo-100 text-sm font-bold uppercase tracking-widest mb-1">Total Outstanding</p>
-                <h2 className="text-5xl font-extrabold">${outstanding.toFixed(2)}</h2>
+                <h2 className="text-5xl font-extrabold">₹{outstanding.toFixed(2)}</h2>
                 <div className="mt-4 flex items-center gap-2">
                   <Calendar className="text-indigo-200 w-5 h-5" />
                   <span className="text-indigo-100 text-sm font-medium">Due by next cycle</span>
@@ -228,7 +228,7 @@ export default function PaymentHistory() {
                               {new Date(fee.due_date).toLocaleDateString()}
                             </td>
                             <td className="py-5 text-sm font-bold text-slate-800 text-right">
-                              ${parseFloat(fee.amount).toFixed(2)}
+                              ₹{parseFloat(fee.amount).toFixed(2)}
                             </td>
                             <td className="py-5 text-center text-sm font-medium">
                               {getStatusBadge(fee.status)}
@@ -278,7 +278,7 @@ export default function PaymentHistory() {
                       </div>
                       <p className="text-lg font-medium tracking-widest mb-1">•••• •••• •••• 4281</p>
                       <div className="flex justify-between items-end">
-                        <p className="text-xs text-slate-400 uppercase tracking-tighter">Alex Johnson</p>
+                        <p className="text-xs text-slate-400 uppercase tracking-tighter">Aarav Sharma</p>
                         <p className="text-xs text-slate-400">05/26</p>
                       </div>
                     </div>
@@ -292,7 +292,7 @@ export default function PaymentHistory() {
                       </div>
                       <div>
                         <p className="font-bold text-slate-800 text-sm">Google Pay</p>
-                        <p className="text-xs text-slate-500 font-medium">alex.pay@upi</p>
+                        <p className="text-xs text-slate-500 font-medium">aarav.pay@upi</p>
                       </div>
                     </div>
                     <MoreVertical className="w-5 h-5 text-slate-300" />

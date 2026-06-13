@@ -242,7 +242,7 @@ export default function LeaveRequestPortal() {
                           <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Emergency Phone</label>
                           <input 
                             type="tel" 
-                            placeholder="+1 (555) 000-0000" 
+                            placeholder="+91 98765 43210" 
                             value={emergencyPhone}
                             onChange={(e) => setEmergencyPhone(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-slate-700 outline-none focus:border-indigo-500 transition-all" 
@@ -333,8 +333,8 @@ export default function LeaveRequestPortal() {
                             </>
                           ) : (
                             <>
-                              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=WardenSarah" className="w-6 h-6 rounded-full bg-slate-100" alt="avatar" />
-                              <p className="text-xs text-slate-400 font-medium">Assigned to: Sarah Miller</p>
+                              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=WardenPriya" className="w-6 h-6 rounded-full bg-slate-100" alt="avatar" />
+                              <p className="text-xs text-slate-400 font-medium">Assigned to: Priya Sharma</p>
                             </>
                           )}
                         </div>
@@ -397,17 +397,17 @@ export default function LeaveRequestPortal() {
                 </ul>
               </section>
 
-              <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white text-center relative overflow-hidden">
-                <HelpCircle className="w-10 h-10 opacity-20 absolute -right-4 -top-4 text-white" />
-                <h4 className="font-extrabold text-xl mb-2">Need Extension?</h4>
-                <p className="text-indigo-100 text-sm mb-6">Already out and need more time? Contact the portal warden immediately.</p>
-                <button 
-                  onClick={() => alert('Calling Warden Sarah Miller at +1 234-567-890')}
-                  className="w-full py-3 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-indigo-50 transition-colors cursor-pointer"
-                >
-                  Call Sarah Miller
-                </button>
-              </div>
+                <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white text-center relative overflow-hidden">
+                  <HelpCircle className="w-10 h-10 opacity-20 absolute -right-4 -top-4 text-white" />
+                  <h4 className="font-extrabold text-xl mb-2">Need Extension?</h4>
+                  <p className="text-indigo-100 text-sm mb-6">Already out and need more time? Contact the hostel warden immediately.</p>
+                  <button 
+                    onClick={() => alert('Calling Warden Priya Sharma at +91 98765 43211')}
+                    className="w-full py-3 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-indigo-50 transition-colors cursor-pointer"
+                  >
+                    Call Priya Sharma
+                  </button>
+                </div>
             </div>
           </div>
         </div>

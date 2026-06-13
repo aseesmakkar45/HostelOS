@@ -263,9 +263,9 @@ export default function GatePassDetails() {
                     <h3 className="font-extrabold">AI Identity</h3>
                   </div>
                   <div className="flex items-center gap-4 mb-8">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700" alt="Avatar" />
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Aarav" className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700" alt="Avatar" />
                     <div>
-                      <p className="text-lg font-bold">Alex Johnson</p>
+                      <p className="text-lg font-bold">Aarav Sharma</p>
                       <p className="text-xs text-indigo-400 font-bold uppercase tracking-widest">Student ID: 402202</p>
                     </div>
                   </div>

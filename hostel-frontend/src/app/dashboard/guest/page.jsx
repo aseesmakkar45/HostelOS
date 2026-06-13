@@ -22,7 +22,7 @@ import {
 export default function GuestPortal() {
   const [status, setStatus] = useState('Approval Pending');
   const [loading, setLoading] = useState(false);
-  const [guestName, setGuestName] = useState('John Doe');
+  const [guestName, setGuestName] = useState('Jayesh Verma');
   const [purpose, setPurpose] = useState('Meeting Student');
   const [entryTime, setEntryTime] = useState('14:00');
   const [exitTime, setExitTime] = useState('18:00');
@@ -66,10 +66,10 @@ export default function GuestPortal() {
           </div>
           <div className="flex items-center gap-3 pl-6 border-l border-slate-100">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-800">John Doe</p>
+              <p className="text-sm font-bold text-slate-800">Jayesh Verma</p>
               <p className="text-xs text-slate-500 font-medium">Registered Guest</p>
             </div>
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=John" alt="Guest" className="w-10 h-10 rounded-xl bg-slate-100" />
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jayesh" alt="Guest" className="w-10 h-10 rounded-xl bg-slate-100" />
           </div>
         </div>
       </header>
@@ -102,7 +102,7 @@ export default function GuestPortal() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Host Name</p>
-                      <p className="font-bold text-slate-700">Alex Johnson (402-B)</p>
+                      <p className="font-bold text-slate-700">Aarav Sharma (101)</p>
                     </div>
                   </div>
                   <div className="pt-4 flex flex-wrap gap-3 justify-center md:justify-start">
@@ -176,7 +176,7 @@ export default function GuestPortal() {
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Emergency Contact (Phone)</label>
                   <input 
                     type="tel" 
-                    placeholder="+1 (555) 000-0000" 
+                    placeholder="+91 98765 43210" 
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 font-semibold text-slate-700 outline-none focus:border-indigo-500 transition-all"
@@ -244,7 +244,7 @@ export default function GuestPortal() {
                   <div className="flex items-center justify-between p-4 bg-white/10 rounded-2xl backdrop-blur-md opacity-60">
                     <div>
                       <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Dinner</p>
-                      <p className="text-sm font-bold">Asian Cuisine</p>
+                      <p className="text-sm font-bold">North Indian Buffet</p>
                     </div>
                     <p className="text-xs font-bold">19:30 - 21:30</p>
                   </div>

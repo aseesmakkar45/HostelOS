@@ -105,7 +105,7 @@ export default function StudentDashboard() {
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm card-hover flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pending Dues</p>
-                    <h3 className="text-2xl font-black text-slate-900 mt-2">${studentData?.pendingFees?.toLocaleString()}.00</h3>
+                    <h3 className="text-2xl font-black text-slate-900 mt-2">₹{studentData?.pendingFees?.toLocaleString()}.00</h3>
                     <p className="text-xs text-slate-500 mt-1 font-semibold">Semester Billing</p>
                   </div>
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${studentData?.pendingFees > 0 ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
