@@ -34,7 +34,7 @@ export default function Sidebar({
   onEmergencyCall = null
 }) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, showToast } = useAuth() || {};
 
   const helpConfig = role === 'warden'
     ? { label: 'Call Admin', description: 'Contact the hostel admin for urgent matters.', number: '+91 98765 43200' }
@@ -42,7 +42,11 @@ export default function Sidebar({
     ? { label: 'Call Support', description: 'Contact IT support for technical assistance.', number: '+91 98765 43222' }
     : { label: 'Call Warden', description: 'Contact hostel warden for urgent assistance.', number: '+91 98765 43210' };
 
-  const handleCall = onEmergencyCall || (() => alert(`Calling ${helpConfig.label} at ${helpConfig.number}`));
+  const handleCall = onEmergencyCall || (() => {
+    if (showToast) {
+      showToast(`Calling ${helpConfig.label} at ${helpConfig.number}...`, 'info');
+    }
+  });
 
   // Highlight based on either prop or active path
   const checkActive = (item, href) => {
