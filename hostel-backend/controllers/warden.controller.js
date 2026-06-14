@@ -1,4 +1,6 @@
 const pool = require('../config/db');
+const { createNotification } = require('./notification.controller');
+const axios = require('axios');
 
 const getComplaints = async (req, res) => {
   try {
@@ -34,7 +36,17 @@ const updateComplaint = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Complaint not found' });
     }
 
-    res.json({ success: true, data: result.rows[0] });
+    const complaint = result.rows[0];
+
+    // Notify the student about the status update
+    await createNotification(
+      complaint.student_id,
+      'Complaint Status Updated',
+      `Your complaint "${complaint.title}" is now marked as "${status}".`,
+      'complaint'
+    );
+
+    res.json({ success: true, data: complaint });
   } catch (err) {
     console.error('Update complaint error:', err.message);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -81,7 +93,21 @@ const updateLeave = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Leave request not found' });
     }
 
-    res.json({ success: true, data: result.rows[0] });
+    const leave = result.rows[0];
+
+    // Format dates cleanly
+    const fromStr = new Date(leave.from_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const toStr = new Date(leave.to_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    // Notify the student
+    await createNotification(
+      leave.student_id,
+      `Leave Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      `Your leave request from ${fromStr} to ${toStr} has been ${status}.`,
+      'leave'
+    );
+
+    res.json({ success: true, data: leave });
   } catch (err) {
     console.error('Update leave error:', err.message);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -198,7 +224,17 @@ const updatePass = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Gate pass not found' });
     }
 
-    res.json({ success: true, data: result.rows[0] });
+    const pass = result.rows[0];
+
+    // Notify the student
+    await createNotification(
+      pass.student_id,
+      `Visitor Pass ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      `The visitor gate pass for ${pass.visitor_name} has been ${status}.`,
+      'gatepass'
+    );
+
+    res.json({ success: true, data: pass });
   } catch (err) {
     console.error('Warden update pass error:', err.message);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -251,11 +287,23 @@ const getAIInsights = async (req, res) => {
 
     const occupancyRatio = activeOnCampus / totalAllocated;
 
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 is Sunday, 6 is Saturday
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const currentDay = days[dayOfWeek];
+    
+    let dayWeight = 1.0;
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      dayWeight = 0.65; // On weekends, fewer students eat in the mess
+    } else if (dayOfWeek === 5) {
+      dayWeight = 0.85; // Friday slide
+    }
+
     const diningForecastData = [
-      { name: 'Breakfast (8 AM)', load: Math.round(occupancyRatio * 85), capacity: 100 },
-      { name: 'Lunch (1 PM)', load: Math.round(occupancyRatio * 115), capacity: 100 },
-      { name: 'Snacks (5 PM)', load: Math.round(occupancyRatio * 60), capacity: 100 },
-      { name: 'Dinner (8 PM)', load: Math.round(occupancyRatio * 95), capacity: 100 },
+      { name: 'Breakfast (8 AM)', load: Math.max(5, Math.round(activeOnCampus * 0.85 * dayWeight)), capacity: totalAllocated },
+      { name: 'Lunch (1 PM)', load: Math.max(5, Math.round(activeOnCampus * 0.95 * dayWeight)), capacity: totalAllocated },
+      { name: 'Snacks (5 PM)', load: Math.max(5, Math.round(activeOnCampus * 0.60 * dayWeight)), capacity: totalAllocated },
+      { name: 'Dinner (8 PM)', load: Math.max(5, Math.round(activeOnCampus * 0.90 * (dayOfWeek === 0 || dayOfWeek === 6 ? 1.15 : dayWeight))), capacity: totalAllocated },
     ];
 
     // 2. Complaint Categories Distribution
@@ -283,7 +331,6 @@ const getAIInsights = async (req, res) => {
       };
     });
 
-    // Fallback if no complaints seeded yet
     if (complaintDistributionData.length === 0) {
       complaintDistributionData.push(
         { name: 'Electrical', value: 45, color: '#6366f1' },
@@ -297,11 +344,12 @@ const getAIInsights = async (req, res) => {
     const lateReturnsRes = await pool.query(
       `SELECT u.name as student_name, to_char(gl.entry_time, 'HH24:MI') as entry_time, r.room_number
        FROM gate_logs gl
-       JOIN gate_passes gp ON gl.gate_pass_id = gp.id
-       JOIN users u ON gp.student_id = u.id
+       LEFT JOIN student_gate_passes sgp ON gl.student_gate_pass_id = sgp.id
+       JOIN users u ON gl.student_id = u.id
        LEFT JOIN allocations a ON u.id = a.student_id AND a.is_active = TRUE
        LEFT JOIN rooms r ON a.room_id = r.id
-       WHERE EXTRACT(HOUR FROM gl.entry_time) >= 22 OR EXTRACT(HOUR FROM gl.entry_time) < 6
+       WHERE (EXTRACT(HOUR FROM gl.entry_time) >= 22 OR EXTRACT(HOUR FROM gl.entry_time) < 6)
+       ORDER BY gl.entry_time DESC
        LIMIT 5`
     );
 
@@ -319,34 +367,197 @@ const getAIInsights = async (req, res) => {
       });
     }
 
+    // Dynamic Smart Alerts for capacity management
     const smartAlerts = [];
-    if (occupancyRatio > 0.8) {
+    const occupancyPercentage = Math.round((activeOnCampus / totalAllocated) * 100);
+    
+    if (occupancyPercentage > 85) {
       smartAlerts.push({
-        title: 'High Traffic Warning',
-        details: `Hostel occupancy is at ${Math.round(occupancyRatio * 100)}%. AI predicts mess hall congestion in 10 minutes. Opening secondary gate.`
+        title: 'High Capacity Alert',
+        details: `Active campus occupancy is at ${occupancyPercentage}% (${activeOnCampus} residents). Mess hall load is predicted to exceed optimal threshold. Deploying secondary food counter.`
+      });
+    } else if (occupancyPercentage > 60) {
+      smartAlerts.push({
+        title: 'Moderate Capacity Alert',
+        details: `Hostel capacity is at ${occupancyPercentage}%. Standard operations optimal.`
+      });
+    } else {
+      smartAlerts.push({
+        title: 'Low Capacity Alert',
+        details: `Active occupancy is low (${occupancyPercentage}%) due to high weekend leave approvals. Dining hall staff consolidated.`
       });
     }
     
-    smartAlerts.push({
-      title: 'Unauthorized Tailgating Detected',
-      details: 'Vision system detected an unrecognized person following Student ID #402202. Warden notified.'
+    const gateTrafficRes = await pool.query(
+      "SELECT COUNT(*)::int as count FROM gate_logs WHERE entry_time > NOW() - INTERVAL '1 hour'"
+    );
+    const gateScansLastHour = gateTrafficRes.rows[0].count;
+    if (gateScansLastHour > 5) {
+      smartAlerts.push({
+        title: 'Gate Congestion Warning',
+        details: `${gateScansLastHour} scans logged in the last hour. Security checkpoint is experiencing high traffic.`
+      });
+    } else {
+      smartAlerts.push({
+        title: 'Gate Flow Optimal',
+        details: `Only ${gateScansLastHour} scans logged in the last hour. Security flow is normal.`
+      });
+    }
+
+    // 4. Student Risk Scores Calculation
+    const riskQuery = `
+      SELECT 
+        u.id, 
+        u.name, 
+        u.roll_number,
+        COALESCE(r.room_number, 'Unallocated') as room_number,
+        (
+          SELECT COUNT(*)::int FROM gate_logs gl
+          WHERE gl.student_id = u.id 
+            AND (EXTRACT(HOUR FROM gl.entry_time) >= 22 OR EXTRACT(HOUR FROM gl.entry_time) < 6)
+        ) as late_entries,
+        (
+          SELECT COUNT(*)::int FROM complaints c
+          WHERE c.student_id = u.id AND c.status IN ('pending', 'in-progress', 'in_progress')
+        ) as open_complaints,
+        (
+          SELECT COUNT(*)::int FROM fees f
+          WHERE f.student_id = u.id AND f.status = 'pending'
+        ) as pending_fees_count,
+        (
+          SELECT COALESCE(SUM(amount), 0)::float FROM fees f
+          WHERE f.student_id = u.id AND f.status = 'pending'
+        ) as pending_fees_amount
+      FROM users u
+      LEFT JOIN allocations a ON u.id = a.student_id AND a.is_active = TRUE
+      LEFT JOIN rooms r ON a.room_id = r.id
+      WHERE u.role = 'student'
+    `;
+    const riskRes = await pool.query(riskQuery);
+    
+    const studentRiskScores = riskRes.rows.map(row => {
+      const score = Math.min(100, (row.late_entries * 25) + (row.open_complaints * 15) + (row.pending_fees_count * 20));
+      
+      const violationReasons = [];
+      if (row.late_entries > 0) violationReasons.push(`${row.late_entries} curfew breach(es)`);
+      if (row.open_complaints > 0) violationReasons.push(`${row.open_complaints} open complaint(s)`);
+      if (row.pending_fees_count > 0) violationReasons.push(`₹${row.pending_fees_amount.toLocaleString()} unpaid fees`);
+      
+      const reason = violationReasons.length > 0 ? violationReasons.join(', ') : 'No violations detected';
+      
+      let status = 'low';
+      if (score >= 75) status = 'high';
+      else if (score >= 40) status = 'medium';
+
+      return {
+        id: row.id,
+        name: row.name,
+        roll_number: row.roll_number,
+        room_number: row.room_number,
+        late_entries: row.late_entries,
+        open_complaints: row.open_complaints,
+        pending_fees_count: row.pending_fees_count,
+        score,
+        status,
+        reason
+      };
     });
+
+    const flaggedStudents = studentRiskScores.filter(s => s.score > 0).sort((a, b) => b.score - a.score);
+
+    // Dynamic MTTR calculation
+    const mttrRes = await pool.query(
+      `SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at))/3600.0) as avg_hours 
+       FROM complaints 
+       WHERE status = 'resolved' AND resolved_at IS NOT NULL`
+    );
+    const avgHours = mttrRes.rows[0].avg_hours;
+    const averageMttr = avgHours ? `${avgHours.toFixed(1)} Hrs` : '4.2 Hrs';
+
+    // Dynamic Gate scan score calculation
+    const totalScansRes = await pool.query("SELECT COUNT(*)::int as count FROM gate_logs");
+    const totalScans = totalScansRes.rows[0].count;
+    const lateScansRes = await pool.query(
+      `SELECT COUNT(*)::int as count FROM gate_logs 
+       WHERE (EXTRACT(HOUR FROM entry_time) >= 22 OR EXTRACT(HOUR FROM entry_time) < 6)`
+    );
+    const lateScans = lateScansRes.rows[0].count;
+    const scanScoreVal = totalScans > 0 ? Math.max(70, 100 - (lateScans / totalScans * 15)) : 100.0;
+    const validScansScore = `${scanScoreVal.toFixed(1)}%`;
 
     res.json({
       success: true,
       data: {
-        congestionIndex: `${Math.round(occupancyRatio * 115)}% Max`,
-        averageMttr: '4.2 Hrs',
-        validScansScore: '99.8%',
+        congestionIndex: `${occupancyPercentage}% Max`,
+        averageMttr,
+        validScansScore,
         diningForecastData,
         complaintDistributionData,
         safetySweeps,
-        smartAlerts
+        smartAlerts,
+        flaggedStudents
       }
     });
   } catch (err) {
     console.error('Warden AI Insights error:', err.message);
     res.status(500).json({ success: false, error: 'Server error compiling AI insights' });
+  }
+};
+
+const getStudentGatePasses = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT gp.id, gp.departure_time, gp.expected_return, gp.reason, gp.permission_status, gp.is_night_stay, gp.qr_code, gp.used_for_exit, gp.used_for_return,
+              u.name as student_name,
+              u.id::text as student_id,
+              u.gender,
+              COALESCE(r.room_number, 'Unallocated') as room_number
+       FROM student_gate_passes gp
+       JOIN users u ON gp.student_id = u.id
+       LEFT JOIN allocations a ON u.id = a.student_id AND a.is_active = TRUE
+       LEFT JOIN rooms r ON a.room_id = r.id
+       ORDER BY gp.created_at DESC`
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Warden get student gate passes error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
+const updateStudentGatePass = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // 'Approved' or 'Rejected'
+
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Status is required' });
+    }
+
+    const result = await pool.query(
+      'UPDATE student_gate_passes SET permission_status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Student gate pass not found' });
+    }
+
+    const pass = result.rows[0];
+
+    // Notify the student
+    const depStr = new Date(pass.departure_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    await createNotification(
+      pass.student_id,
+      `Outing Request ${status}`,
+      `Your outing request for ${depStr} has been ${status.toLowerCase()} by Warden.`,
+      'gatepass'
+    );
+
+    res.json({ success: true, data: pass });
+  } catch (err) {
+    console.error('Warden update student gate pass error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
   }
 };
 
@@ -362,5 +573,7 @@ module.exports = {
   updatePass,
   getStaff,
   createStaff,
-  getAIInsights
+  getAIInsights,
+  getStudentGatePasses,
+  updateStudentGatePass
 };

@@ -1,10 +1,12 @@
 const pool = require('../config/db');
+const { createNotification } = require('./notification.controller');
+const axios = require('axios');
 
 // GET /api/admin/students
 const getStudents = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.phone, r.room_number, r.floor, a.allocated_at
+      `SELECT u.id, u.name, u.email, u.phone, r.room_number, r.floor, a.allocated_at, u.program, u.branch, u.graduation_year
        FROM users u
        LEFT JOIN allocations a ON u.id = a.student_id AND a.is_active = TRUE
        LEFT JOIN rooms r ON a.room_id = r.id
@@ -124,7 +126,17 @@ const addFee = async (req, res) => {
       [student_id, amount, fee_type, due_date]
     );
 
-    res.status(201).json({ success: true, data: result.rows[0] });
+    const fee = result.rows[0];
+
+    // Notify the student about the newly assigned fee
+    await createNotification(
+      student_id,
+      'New Fee Invoice Issued',
+      `A new fee of ₹${amount} for ${fee_type} has been assigned. Due Date: ${due_date}.`,
+      'fee'
+    );
+
+    res.status(201).json({ success: true, data: fee });
   } catch (err) {
     console.error('Add fee error:', err.message);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -151,7 +163,17 @@ const updateFee = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Fee record not found' });
     }
 
-    res.json({ success: true, data: result.rows[0] });
+    const fee = result.rows[0];
+
+    // Notify the student about the fee status update
+    await createNotification(
+      fee.student_id,
+      'Fee Payment Status Updated',
+      `Your ${fee.fee_type} fee of ₹${fee.amount} is now marked as "${status}".`,
+      'fee'
+    );
+
+    res.json({ success: true, data: fee });
   } catch (err) {
     console.error('Update fee error:', err.message);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -164,7 +186,16 @@ const getStats = async (req, res) => {
     const studentsRes = await pool.query("SELECT COUNT(*)::int as count FROM users WHERE role = 'student'");
     const roomsRes = await pool.query("SELECT COUNT(*)::int as count FROM rooms WHERE occupied > 0");
     const complaintsRes = await pool.query("SELECT COUNT(*)::int as count FROM complaints WHERE status = 'pending'");
-    const feesRes = await pool.query("SELECT COALESCE(SUM(amount), 0.00)::float as sum FROM fees WHERE status = 'pending'");
+    
+    const paidRes = await pool.query("SELECT COALESCE(SUM(amount), 0.00)::float as sum FROM fees WHERE status = 'paid'");
+    const pendingRes = await pool.query("SELECT COALESCE(SUM(amount), 0.00)::float as sum FROM fees WHERE status = 'pending'");
+    const totalRes = await pool.query("SELECT COALESCE(SUM(amount), 0.00)::float as sum FROM fees");
+
+    const capacityRes = await pool.query("SELECT COALESCE(SUM(capacity), 0)::int as capacity, COALESCE(SUM(occupied), 0)::int as occupied FROM rooms");
+    const totalCapacity = capacityRes.rows[0].capacity;
+    const totalOccupied = capacityRes.rows[0].occupied;
+    const totalVacantBeds = Math.max(0, totalCapacity - totalOccupied);
+    const occupancyRate = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
 
     const chartRes = await pool.query("SELECT room_number, occupied FROM rooms ORDER BY room_number");
 
@@ -174,7 +205,14 @@ const getStats = async (req, res) => {
         totalStudents: studentsRes.rows[0].count,
         roomsOccupied: roomsRes.rows[0].count,
         pendingComplaints: complaintsRes.rows[0].count,
-        pendingFees: feesRes.rows[0].sum,
+        pendingFees: pendingRes.rows[0].sum,
+        revenuePaid: paidRes.rows[0].sum,
+        revenuePending: pendingRes.rows[0].sum,
+        totalRevenue: totalRes.rows[0].sum,
+        totalCapacity,
+        totalOccupied,
+        totalVacantBeds,
+        occupancyRate,
         chartData: chartRes.rows
       }
     });
@@ -398,6 +436,284 @@ const getFinance = async (req, res) => {
   }
 };
 
+// GET /api/admin/room-compatibility?student_id=XX
+const getRoomCompatibility = async (req, res) => {
+  try {
+    const { student_id } = req.query;
+    if (!student_id) {
+      return res.status(400).json({ success: false, error: 'student_id is required' });
+    }
+
+    // 1. Fetch details of the target student
+    const studentRes = await pool.query(
+      'SELECT id, name, gender, program, branch, graduation_year FROM users WHERE id = $1 AND role = $2',
+      [student_id, 'student']
+    );
+
+    if (studentRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+
+    const student = studentRes.rows[0];
+
+    // 2. Fetch all rooms
+    const roomsRes = await pool.query('SELECT * FROM rooms ORDER BY room_number');
+    const rooms = roomsRes.rows;
+
+    // 3. Fetch all active allocations and student profiles
+    const allocationsRes = await pool.query(`
+      SELECT a.room_id, u.id as student_id, u.name, u.gender, u.program, u.branch, u.graduation_year
+      FROM allocations a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.is_active = TRUE AND u.role = 'student'
+    `);
+
+    // Group allocations by room_id
+    const roomOccupants = {};
+    allocationsRes.rows.forEach(alloc => {
+      if (!roomOccupants[alloc.room_id]) {
+        roomOccupants[alloc.room_id] = [];
+      }
+      roomOccupants[alloc.room_id].push(alloc);
+    });
+
+    const compatibilityResults = [];
+
+    // 4. Evaluate compatibility for each room
+    for (const room of rooms) {
+      // Skip room if it's already full
+      if (room.occupied >= room.capacity) {
+        continue;
+      }
+
+      const occupants = roomOccupants[room.id] || [];
+
+      // If room is empty, compatibility is 100% (solo or clean slate)
+      if (occupants.length === 0) {
+        compatibilityResults.push({
+          room_id: room.id,
+          room_number: room.room_number,
+          room_type: room.room_type,
+          occupied: room.occupied,
+          capacity: room.capacity,
+          score: 100,
+          status: 'Excellent',
+          occupants: [],
+          reason: 'Room is currently empty. Perfect for solo or fresh setups.'
+        });
+        continue;
+      }
+
+      // Check gender mismatch. If genders do not match, compatibility is 0.
+      const genderMismatch = occupants.some(occ => occ.gender !== student.gender);
+      if (genderMismatch) {
+        continue;
+      }
+
+      // Compute compatibility scores against each occupant, then take the average
+      let totalScoreForRoom = 0;
+      const reasons = [];
+
+      for (const occ of occupants) {
+        let score = 10; // Base score
+        const matches = [];
+
+        if (occ.program === student.program) {
+          score += 30;
+          matches.push('Program');
+        }
+        if (occ.branch === student.branch) {
+          score += 35;
+          matches.push('Branch');
+        }
+        if (occ.graduation_year === student.graduation_year) {
+          score += 25;
+          matches.push('Graduation Year');
+        }
+
+        totalScoreForRoom += score;
+        if (matches.length > 0) {
+          reasons.push(`${occ.name} (${matches.join(', ')})`);
+        } else {
+          reasons.push(`${occ.name} (General match)`);
+        }
+      }
+
+      const averageScore = Math.min(100, Math.round(totalScoreForRoom / occupants.length));
+      
+      let status = 'Moderate';
+      if (averageScore >= 85) {
+        status = 'Excellent';
+      } else if (averageScore >= 65) {
+        status = 'Good';
+      } else if (averageScore >= 40) {
+        status = 'Moderate';
+      } else {
+        status = 'Low';
+      }
+
+      // Call Gemini API if key exists, otherwise fallback to local description generator
+      let reasonText = '';
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (apiKey) {
+        try {
+          const prompt = `
+            You are a Hostel Room Compatibility Engine.
+            Compare Student A (selected for allocation) and Student B (current roommate).
+            
+            Student A:
+            - Name: ${student.name}
+            - Program: ${student.program}
+            - Branch: ${student.branch}
+            - Graduation Year: ${student.graduation_year}
+
+            Student B:
+            - Name: ${occupants[0].name}
+            - Program: ${occupants[0].program}
+            - Branch: ${occupants[0].branch}
+            - Graduation Year: ${occupants[0].graduation_year}
+
+            Compatibility score: ${averageScore}%
+            
+            Generate a short, single-sentence recommendation (e.g. "Excellent match: Both students are B.Tech Computer Science sophomores (batch 2026), providing strong study alignment."). Keep it professional, friendly, and under 20 words.
+          `;
+          
+          const response = await axios.post(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            {
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: "text/plain"
+              }
+            },
+            { timeout: 3000 }
+          );
+          reasonText = response.data.contents[0].parts[0].text.trim();
+        } catch (err) {
+          console.warn('Gemini compatibility description failed, falling back:', err.message);
+        }
+      }
+
+      if (!reasonText) {
+        // Local NLP fallback
+        if (averageScore >= 85) {
+          reasonText = `Excellent Match: High academic alignment with ${occupants.map(o => o.name).join(', ')} (same branch/year).`;
+        } else if (averageScore >= 65) {
+          reasonText = `Good Match: Shares program or batch with ${occupants.map(o => o.name).join(', ')}.`;
+        } else {
+          reasonText = `General Match: Compatible roommate option with ${occupants.map(o => o.name).join(', ')}.`;
+        }
+      }
+
+      compatibilityResults.push({
+        room_id: room.id,
+        room_number: room.room_number,
+        room_type: room.room_type,
+        occupied: room.occupied,
+        capacity: room.capacity,
+        score: averageScore,
+        status,
+        occupants: occupants.map(o => ({ id: o.student_id, name: o.name, branch: o.branch, graduation_year: o.graduation_year })),
+        reason: reasonText
+      });
+    }
+
+    // Sort compatibilityResults by score descending
+    compatibilityResults.sort((a, b) => b.score - a.score);
+
+    res.json({ success: true, data: compatibilityResults });
+  } catch (err) {
+    console.error('Get room compatibility error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
+// GET /api/admin/ai-insights
+const getAdminAISuggestions = async (req, res) => {
+  try {
+    // 1. Get statistics
+    const unallocatedRes = await pool.query(
+      `SELECT COUNT(*)::int as count FROM users u
+       LEFT JOIN allocations a ON u.id = a.student_id AND a.is_active = TRUE
+       WHERE u.role = 'student' AND a.id IS NULL`
+    );
+    const unallocatedCount = unallocatedRes.rows[0].count;
+
+    const complaintsRes = await pool.query(
+      "SELECT COUNT(*)::int as count FROM complaints WHERE status IN ('pending', 'in-progress', 'in_progress')"
+    );
+    const pendingComplaints = complaintsRes.rows[0].count;
+
+    const feesRes = await pool.query(
+      "SELECT COUNT(*)::int as count, COALESCE(SUM(amount), 0)::float as sum FROM fees WHERE status = 'pending'"
+    );
+    const pendingFeesCount = feesRes.rows[0].count;
+    const pendingFeesSum = feesRes.rows[0].sum;
+
+    const occupancyRes = await pool.query(
+      "SELECT COALESCE(SUM(occupied), 0)::int as occupied, COALESCE(SUM(capacity), 0)::int as capacity FROM rooms"
+    );
+    const totalOccupied = occupancyRes.rows[0].occupied;
+    const totalCapacity = occupancyRes.rows[0].capacity;
+    const occupancyRate = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
+
+    let recommendations = [];
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (apiKey) {
+      try {
+        const prompt = `
+          You are the HostelOS AI Administrative Director.
+          Generate a list of 3 dynamic, data-driven, non-hardcoded AI recommendations/insights for the hostel administrator.
+          Do NOT output markdown. Return a JSON array of strings.
+
+          Hostel State:
+          - Unallocated Students: ${unallocatedCount}
+          - Pending/In-progress Complaints: ${pendingComplaints}
+          - Unpaid Fees: ${pendingFeesCount} students outstanding, totaling ₹${pendingFeesSum}
+          - Room Occupancy Rate: ${occupancyRate}% (${totalOccupied} / ${totalCapacity} beds filled)
+
+          Provide exactly 3 administrative recommendations. E.g. room allocation, fee reminders, staff scheduling based on complaints.
+          Be precise, professional, and under 15 words per recommendation.
+        `;
+
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          },
+          { timeout: 4000 }
+        );
+        const textResponse = response.data.contents[0].parts[0].text;
+        recommendations = JSON.parse(textResponse);
+      } catch (err) {
+        console.warn('Gemini admin suggestions failed, falling back:', err.message);
+      }
+    }
+
+    if (recommendations.length === 0) {
+      // Local Fallback
+      recommendations.push(
+        `AI Allocator: ${unallocatedCount} students are unallocated. Match B.Tech cohorts to rooms with available beds.`
+      );
+      recommendations.push(
+        `Fee Collector: Outstanding fees totaling ₹${pendingFeesSum.toLocaleString()} pending. Trigger automated notifications.`
+      );
+      recommendations.push(
+        `Staff Dispatcher: ${pendingComplaints} open complaints. Check Maintenance Staff availability for urgent electricals.`
+      );
+    }
+
+    res.json({ success: true, data: recommendations });
+  } catch (err) {
+    console.error('Get admin AI suggestions error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
 module.exports = {
   getStudents,
   allocateRoom,
@@ -409,6 +725,8 @@ module.exports = {
   getMess,
   updateMess,
   getRooms,
-  getFinance
+  getFinance,
+  getRoomCompatibility,
+  getAdminAISuggestions
 };
 

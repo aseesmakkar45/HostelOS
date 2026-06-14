@@ -22,6 +22,8 @@ router.get('/residents', wardenController.getResidents);
 router.get('/fees', wardenController.getFees);
 router.get('/passes', wardenController.getPasses);
 router.patch('/pass/:id', wardenController.updatePass);
+router.get('/student-passes', wardenController.getStudentGatePasses);
+router.patch('/student-pass/:id', wardenController.updateStudentGatePass);
 router.get('/insights', wardenController.getAIInsights);
 
 module.exports = router;

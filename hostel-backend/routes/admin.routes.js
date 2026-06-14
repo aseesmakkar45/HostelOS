@@ -20,5 +20,7 @@ router.get('/mess', adminController.getMess);
 router.post('/mess', adminController.updateMess);
 router.get('/rooms', adminController.getRooms);
 router.get('/finance', adminController.getFinance);
+router.get('/room-compatibility', adminController.getRoomCompatibility);
+router.get('/ai-insights', adminController.getAdminAISuggestions);
 
 module.exports = router;
