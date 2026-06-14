@@ -16,7 +16,12 @@ async function run() {
       `, [passwordHash]);
       console.log('✅ Security officer account created successfully!');
     } else {
-      console.log('Security officer account already exists.');
+      await client.query(`
+        UPDATE users 
+        SET password = $1, role = 'warden', name = 'Rajesh Singh (Security Officer)'
+        WHERE email = 'security@hostel.com';
+      `, [passwordHash]);
+      console.log('✅ Security officer password updated successfully!');
     }
   } catch (err) {
     console.error('Failed to insert security officer:', err);
