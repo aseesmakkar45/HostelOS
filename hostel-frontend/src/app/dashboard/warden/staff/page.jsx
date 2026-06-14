@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Briefcase, 
   Search, 
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function StaffManagement() {
+  const { showToast } = useAuth() || {};
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,7 +73,7 @@ export default function StaffManagement() {
               <p className="text-sm text-slate-500 font-medium">Coordinate shift scheduling, monitor performance indices, and manage duty logs.</p>
             </div>
             <button 
-              onClick={() => alert('New shift schedule form opened...')}
+              onClick={() => showToast && showToast('New shift schedule form opened...', 'info')}
               className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center gap-2 cursor-pointer text-xs"
             >
               <Plus className="w-4 h-4" />
@@ -164,7 +166,7 @@ export default function StaffManagement() {
                             </td>
                             <td className="py-4 text-right">
                               <button 
-                                onClick={() => alert(`Editing shift duty checklist for ${staff.name}...`)}
+                                onClick={() => showToast && showToast(`Editing shift duty checklist for ${staff.name}...`, 'info')}
                                 className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-[10px] font-bold uppercase rounded-lg transition-all ml-auto cursor-pointer"
                               >
                                 Edit Duty
@@ -212,7 +214,7 @@ export default function StaffManagement() {
                   </div>
 
                   <button 
-                    onClick={() => alert('Exporting daily timesheet logs...')}
+                    onClick={() => showToast && showToast('Exporting daily timesheet logs...', 'info')}
                     className="w-full py-3.5 bg-indigo-600 text-white text-[10px] font-extrabold uppercase rounded-xl hover:bg-indigo-500 transition-all tracking-widest cursor-pointer"
                   >
                     Export Timesheet

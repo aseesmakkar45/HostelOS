@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   AlertTriangle, 
   Ticket, 
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 
 export default function WardenComplaints() {
+  const { showToast } = useAuth() || {};
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState('All Categories');
@@ -61,12 +63,12 @@ export default function WardenComplaints() {
     try {
       const response = await axios.patch(`/warden/complaint/${id}`, { status });
       if (response.data.success) {
-        alert(`Status updated to ${status}!`);
+        if (showToast) showToast(`Status updated to ${status}!`, 'success');
         fetchComplaints();
       }
     } catch (err) {
       console.error('Error updating status:', err);
-      alert('Failed to update status.');
+      if (showToast) showToast('Failed to update status.', 'error');
     }
   };
 

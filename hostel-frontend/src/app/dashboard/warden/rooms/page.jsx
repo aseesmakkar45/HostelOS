@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Building, 
   UserPlus, 
@@ -16,10 +17,11 @@ import {
 } from 'lucide-react';
 
 export default function WardenRooms() {
+  const { showToast } = useAuth() || {};
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBlock, setSelectedBlock] = useState('Block A');
-  const [selectedFloor, setSelectedFloor] = useState('Floor 4');
+  const [selectedFloor, setSelectedFloor] = useState('Floor 1');
   const [focusedRoom, setFocusedRoom] = useState(null);
 
   useEffect(() => {
@@ -49,6 +51,37 @@ export default function WardenRooms() {
     return 'bg-slate-300 text-slate-600'; // Reserved/Partial
   };
 
+  // Calculations based on the fetched rooms array
+  let blockAOccupied = 0, blockACapacity = 0;
+  let blockBOccupied = 0, blockBCapacity = 0;
+  let blockCOccupied = 0, blockCCapacity = 0;
+  let maintenanceRoomsCount = 0;
+
+  rooms.forEach(room => {
+    if (room.status?.toLowerCase() === 'maintenance') {
+      maintenanceRoomsCount++;
+    }
+    const blockChar = room.room_number.charAt(0).toUpperCase();
+    if (blockChar === 'A') {
+      blockAOccupied += room.occupied || 0;
+      blockACapacity += room.capacity || 0;
+    } else if (blockChar === 'B') {
+      blockBOccupied += room.occupied || 0;
+      blockBCapacity += room.capacity || 0;
+    } else if (blockChar === 'C') {
+      blockCOccupied += room.occupied || 0;
+      blockCCapacity += room.capacity || 0;
+    }
+  });
+
+  const blockAVacant = Math.max(0, blockACapacity - blockAOccupied);
+  const blockBVacant = Math.max(0, blockBCapacity - blockBOccupied);
+  const blockCVacant = Math.max(0, blockCCapacity - blockCOccupied);
+
+  const blockAPct = blockACapacity > 0 ? Math.round((blockAOccupied / blockACapacity) * 100) : 0;
+  const blockBPct = blockBCapacity > 0 ? Math.round((blockBOccupied / blockBCapacity) * 100) : 0;
+  const blockCPct = blockCCapacity > 0 ? Math.round((blockCOccupied / blockCCapacity) * 100) : 0;
+
   return (
     <div className="min-h-screen bg-[#f1f5f9] flex font-sans">
       {/* Sidebar Navigation */}
@@ -69,14 +102,14 @@ export default function WardenRooms() {
             </div>
             <div className="flex gap-3">
               <button 
-                onClick={() => alert('Cleaning schedule opened')}
+                onClick={() => showToast && showToast('Cleaning schedule opened', 'info')}
                 className="bg-white text-slate-700 font-bold px-6 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Paintbrush className="w-4 h-4 text-slate-500" />
                 Schedule Cleaning
               </button>
               <button 
-                onClick={() => alert('Quick allocate opened')}
+                onClick={() => showToast && showToast('Quick allocate opened', 'info')}
                 className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
@@ -93,44 +126,44 @@ export default function WardenRooms() {
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 card-hover">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Block A Availability</p>
                   <div className="flex items-end justify-between mt-2">
-                    <h3 className="text-2xl font-black text-slate-900">142 / 160</h3>
-                    <span className="text-xs font-bold text-emerald-500">18 Vacant</span>
+                    <h3 className="text-2xl font-black text-slate-900">{blockAOccupied} / {blockACapacity}</h3>
+                    <span className="text-xs font-bold text-emerald-500">{blockAVacant} Vacant</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 rounded-full mt-4">
-                    <div className="h-full bg-emerald-500 w-[88%] rounded-full"></div>
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${blockAPct}%` }}></div>
                   </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 card-hover">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Block B Availability</p>
                   <div className="flex items-end justify-between mt-2">
-                    <h3 className="text-2xl font-black text-slate-900">156 / 160</h3>
-                    <span className="text-xs font-bold text-rose-500">4 Vacant</span>
+                    <h3 className="text-2xl font-black text-slate-900">{blockBOccupied} / {blockBCapacity}</h3>
+                    <span className="text-xs font-bold text-rose-500">{blockBVacant} Vacant</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 rounded-full mt-4">
-                    <div className="h-full bg-rose-500 w-[97%] rounded-full"></div>
+                    <div className="h-full bg-rose-500 rounded-full" style={{ width: `${blockBPct}%` }}></div>
                   </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 card-hover">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Block C Availability</p>
                   <div className="flex items-end justify-between mt-2">
-                    <h3 className="text-2xl font-black text-slate-900">120 / 200</h3>
-                    <span className="text-xs font-bold text-indigo-500">80 Vacant</span>
+                    <h3 className="text-2xl font-black text-slate-900">{blockCOccupied} / {blockCCapacity}</h3>
+                    <span className="text-xs font-bold text-indigo-500">{blockCVacant} Vacant</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 rounded-full mt-4">
-                    <div className="h-full bg-indigo-500 w-[60%] rounded-full"></div>
+                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${blockCPct}%` }}></div>
                   </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 card-hover">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Under Maintenance</p>
                   <div className="flex items-end justify-between mt-2">
-                    <h3 className="text-2xl font-black text-slate-900">12</h3>
+                    <h3 className="text-2xl font-black text-slate-900">{maintenanceRoomsCount}</h3>
                     <span className="text-xs font-bold text-amber-500">Rooms</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 rounded-full mt-4">
-                    <div className="h-full bg-amber-500 w-[12%] rounded-full"></div>
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, Math.round((maintenanceRoomsCount / (rooms.length || 1)) * 100))}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -172,9 +205,9 @@ export default function WardenRooms() {
                       onChange={(e) => setSelectedFloor(e.target.value)}
                       className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none cursor-pointer"
                     >
-                      <option>Floor 4</option>
-                      <option>Floor 3</option>
+                      <option>Floor 1</option>
                       <option>Floor 2</option>
+                      <option>Floor 3</option>
                     </select>
                   </div>
                 </div>
@@ -185,18 +218,28 @@ export default function WardenRooms() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-10 gap-4">
-                    {rooms.map((room) => (
-                      <div 
-                        key={room.id}
-                        onClick={() => setFocusedRoom(room)}
-                        className={`room-node aspect-square text-white rounded-2xl flex items-center justify-center font-bold text-sm cursor-pointer shadow-lg transition-transform ${
-                          getStatusColorClass(room.status, room.occupied, room.capacity)
-                        }`}
-                        title={`Room ${room.room_number} - ${room.status}`}
-                      >
-                        {room.room_number}
-                      </div>
-                    ))}
+                    {(() => {
+                      const filtered = rooms.filter(room => {
+                        const blockLetter = selectedBlock.replace('Block ', '').trim();
+                        const floorNum = parseInt(selectedFloor.replace('Floor ', '').trim(), 10);
+                        return room.room_number.startsWith(blockLetter) && room.floor === floorNum;
+                      });
+                      if (filtered.length === 0) {
+                        return <div className="col-span-10 text-center py-10 text-slate-400 text-xs font-bold">No rooms found for this block and floor.</div>;
+                      }
+                      return filtered.map((room) => (
+                        <div 
+                          key={room.id}
+                          onClick={() => setFocusedRoom(room)}
+                          className={`room-node aspect-square text-white rounded-2xl flex items-center justify-center font-bold text-sm cursor-pointer shadow-lg transition-transform ${
+                            getStatusColorClass(room.status, room.occupied, room.capacity)
+                          }`}
+                          title={`Room ${room.room_number} - ${room.status}`}
+                        >
+                          {room.room_number}
+                        </div>
+                      ));
+                    })()}
                   </div>
                 )}
 
@@ -292,13 +335,13 @@ export default function WardenRooms() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <button 
-                        onClick={() => alert(`Editing Room ${focusedRoom.room_number}`)}
+                        onClick={() => showToast && showToast(`Editing Room ${focusedRoom.room_number}`, 'info')}
                         className="py-2 bg-white text-indigo-900 text-[10px] font-extrabold rounded-lg uppercase tracking-widest hover:bg-slate-50 cursor-pointer"
                       >
                         Edit Room
                       </button>
                       <button 
-                        onClick={() => alert(`Viewing history of Room ${focusedRoom.room_number}`)}
+                        onClick={() => showToast && showToast(`Viewing history of Room ${focusedRoom.room_number}`, 'info')}
                         className="py-2 bg-white/10 border border-white/20 text-white text-[10px] font-extrabold rounded-lg uppercase tracking-widest cursor-pointer"
                       >
                         History

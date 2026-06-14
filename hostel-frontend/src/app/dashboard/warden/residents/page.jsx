@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Users, 
   Search, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function ResidentDirectory() {
+  const { showToast } = useAuth() || {};
   const [residents, setResidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,7 +90,7 @@ export default function ResidentDirectory() {
               <p className="text-sm text-slate-500 font-medium">Search, filter, and audit active student profiles and status logs.</p>
             </div>
             <button 
-              onClick={() => alert('New student allocation wizard opened...')}
+              onClick={() => showToast && showToast('New student allocation wizard opened...', 'info')}
               className="bg-indigo-600 text-white font-bold px-5 py-3 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center gap-2 cursor-pointer text-xs"
             >
               Add New Resident
@@ -245,13 +247,13 @@ export default function ResidentDirectory() {
 
                     <div className="w-full grid grid-cols-2 gap-3 mt-8">
                       <button 
-                        onClick={() => alert(`Messaging parent of ${selectedResident.name}`)}
+                        onClick={() => showToast && showToast(`Messaging parent of ${selectedResident.name}...`, 'info')}
                         className="py-3 bg-indigo-50 text-indigo-600 text-[10px] font-extrabold rounded-xl uppercase tracking-widest hover:bg-indigo-100 transition-colors cursor-pointer"
                       >
                         Parent SOS
                       </button>
                       <button 
-                        onClick={() => alert(`Shuffling room configuration for ${selectedResident.name}`)}
+                        onClick={() => showToast && showToast(`Shuffling room configuration for ${selectedResident.name}...`, 'info')}
                         className="py-3 bg-indigo-600 text-white text-[10px] font-extrabold rounded-xl uppercase tracking-widest hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all cursor-pointer"
                       >
                         Reallocate
@@ -276,7 +278,7 @@ export default function ResidentDirectory() {
                     Warden AI suggests room reshuffling for <span className="font-bold">Block B</span> to improve study hygiene.
                   </p>
                   <button 
-                    onClick={() => alert('Launching room reshuffling report...')}
+                    onClick={() => showToast && showToast('Launching room reshuffling report...', 'info')}
                     className="w-full py-3 bg-white text-indigo-600 text-xs font-bold rounded-xl shadow-sm hover:shadow-md transition-all uppercase tracking-widest cursor-pointer mt-6"
                   >
                     Reshuffle Sweep

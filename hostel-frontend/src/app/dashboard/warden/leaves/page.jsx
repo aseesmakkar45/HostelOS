@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Users, 
   Search, 
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function LeaveRequestsQueue() {
+  const { showToast } = useAuth() || {};
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,11 +47,11 @@ export default function LeaveRequestsQueue() {
       const response = await axios.patch(`/warden/leave/${id}`, { status });
       if (response.data.success) {
         setLeaves(prev => prev.map(item => item.id === id ? { ...item, status } : item));
-        alert(`Leave Request has been successfully ${status}.`);
+        if (showToast) showToast(`Leave Request has been successfully ${status}.`, 'success');
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to update leave request status.');
+      if (showToast) showToast('Failed to update leave request status.', 'error');
     }
   };
 

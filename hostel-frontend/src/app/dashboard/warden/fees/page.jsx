@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
+import { useAuth } from '@/context/AuthContext';
 import { 
   CreditCard, 
   Search, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function FinancialLogs() {
+  const { showToast } = useAuth() || {};
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,7 +85,7 @@ export default function FinancialLogs() {
   });
 
   const sendFeeReminder = (name, amount) => {
-    alert(`Reminder for payment of ₹${amount} sent to student ${name} and their registered parent.`);
+    if (showToast) showToast(`Reminder for payment of ₹${amount} sent to student ${name} and their registered parent.`, 'success');
   };
 
   return (
@@ -106,7 +108,7 @@ export default function FinancialLogs() {
             </div>
             <div className="flex gap-3">
               <button 
-                onClick={() => alert('Exporting billing sheets to CSV...')}
+                onClick={() => showToast && showToast('Exporting billing sheets to CSV...', 'info')}
                 className="bg-white text-slate-700 font-bold px-5 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer text-xs"
               >
                 <Download className="w-4 h-4" />

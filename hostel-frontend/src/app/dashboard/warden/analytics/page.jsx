@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Sparkles, 
   TrendingUp, 
@@ -32,6 +33,7 @@ import {
 } from 'recharts';
 
 export default function AIAnalytics() {
+  const { showToast } = useAuth() || {};
   const [reportDateRange, setReportDateRange] = useState('Oct 01 - Oct 31');
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -220,6 +222,78 @@ export default function AIAnalytics() {
                   </div>
                 </div>
 
+                {/* Student Risk Score Registry */}
+                <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm">
+                  <div>
+                    <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-5 h-5 text-indigo-600" />
+                      Student Risk Score Registry
+                    </h3>
+                    <p className="text-xs text-slate-400 font-semibold mb-6">
+                      AI-generated security risk scores compiling curfew entries, unpaid dues, and support queue patterns.
+                    </p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <tr>
+                          <th className="pb-3">Resident</th>
+                          <th className="pb-3 text-center">Late Entries</th>
+                          <th className="pb-3 text-center">Dues</th>
+                          <th className="pb-3 text-center">Open Issues</th>
+                          <th className="pb-3">Risk Level</th>
+                          <th className="pb-3 text-right">Rationale</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {(analyticsData?.flaggedStudents || []).map((student) => (
+                          <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-4">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-xs">
+                                  {student.name?.[0]}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-800">{student.name}</p>
+                                  <p className="text-[9px] text-slate-400 font-semibold">Room {student.room_number}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 text-center text-xs font-semibold text-slate-600">{student.late_entries}</td>
+                            <td className="py-4 text-center text-xs font-semibold text-slate-600">{student.pending_fees_count}</td>
+                            <td className="py-4 text-center text-xs font-semibold text-slate-600">{student.open_complaints}</td>
+                            <td className="py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full ${
+                                    student.status === 'high' ? 'bg-rose-500' :
+                                    student.status === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                                  }`} style={{ width: `${student.score}%` }}></div>
+                                </div>
+                                <span className={`text-[10px] font-bold uppercase ${
+                                  student.status === 'high' ? 'text-rose-500' :
+                                  student.status === 'medium' ? 'text-amber-500' : 'text-emerald-500'
+                                }`}>{student.score}%</span>
+                              </div>
+                            </td>
+                            <td className="py-4 text-right text-[10px] font-medium text-slate-500 leading-normal max-w-xs truncate">
+                              {student.reason}
+                            </td>
+                          </tr>
+                        ))}
+                        {(!analyticsData?.flaggedStudents || analyticsData.flaggedStudents.length === 0) && (
+                          <tr>
+                            <td colSpan={6} className="py-8 text-center text-xs text-slate-400 font-medium">
+                              No flagged residents detected. All metrics safe.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
               </div>
 
               {/* Right Column: AI Suggestions and Settings */}
@@ -256,7 +330,7 @@ export default function AIAnalytics() {
                     </div>
 
                     <button 
-                      onClick={() => alert('Compiling detailed AI Operations audit PDF...')}
+                      onClick={() => showToast && showToast('Compiling detailed AI Operations audit PDF...', 'info')}
                       className="w-full py-4 bg-white text-indigo-900 text-xs font-extrabold rounded-xl uppercase tracking-widest hover:bg-slate-100 transition-all cursor-pointer"
                     >
                       Generate Report
