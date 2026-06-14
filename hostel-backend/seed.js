@@ -205,13 +205,13 @@ const seedDatabase = async () => {
     ];
 
     const studentUsers = [...initialStudents];
-    for (let i = 10; i < 50; i++) {
+    for (let i = 10; i <= 50; i++) {
       const isFemale = i % 2 === 0;
       const fnList = isFemale ? indianFirstNamesFemale : indianFirstNamesMale;
       const fn = fnList[i % fnList.length];
       const ln = indianLastNames[i % indianLastNames.length];
       const name = `${fn} ${ln}`;
-      const email = `student${i + 1}@hostel.com`;
+      const email = `student${i}@hostel.com`;
       const phone = `98765432${30 + i}`;
       const gender = isFemale ? 'Female' : 'Male';
       studentUsers.push({ name, email, phone, gender });
