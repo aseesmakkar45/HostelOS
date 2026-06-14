@@ -108,7 +108,7 @@ export default function AdminLogin() {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                   <input
                     type="email"
-                    placeholder="admin@campusstay.com"
+                    placeholder="admin@hostel.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 transition-all text-white"

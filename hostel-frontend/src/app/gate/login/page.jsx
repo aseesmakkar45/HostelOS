@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 export default function GateKioskLogin() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, showToast } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -43,7 +43,7 @@ export default function GateKioskLogin() {
   };
 
   const triggerSOS = () => {
-    alert('ALERT: SOS Alarm Broadcasted to Campus Warden Network.');
+    if (showToast) showToast('ALERT: SOS Alarm Broadcasted to Campus Warden Network.', 'error');
   };
 
   return (
@@ -82,7 +82,7 @@ export default function GateKioskLogin() {
                   <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                   <input
                     type="email"
-                    placeholder="admin@campusstay.com"
+                    placeholder="security@hostel.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full h-16 bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-6 text-sm font-semibold focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-700"

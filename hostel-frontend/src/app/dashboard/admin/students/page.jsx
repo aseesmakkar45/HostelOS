@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
-import { Users, Search, Home, Plus, X, CheckCircle } from 'lucide-react';
+import { Users, Search, Home, Plus, X, CheckCircle, Sparkles } from 'lucide-react';
 
 export default function AdminStudentsPage() {
   const [students, setStudents] = useState([]);
@@ -16,6 +16,29 @@ export default function AdminStudentsPage() {
   const [selectedRoom, setSelectedRoom] = useState('');
   const [allocating, setAllocating] = useState(false);
   const [toast, setToast] = useState(null);
+  const [compatibility, setCompatibility] = useState([]);
+  const [loadingCompatibility, setLoadingCompatibility] = useState(false);
+
+  useEffect(() => {
+    if (!selectedStudent) {
+      setCompatibility([]);
+      return;
+    }
+    async function fetchCompat() {
+      setLoadingCompatibility(true);
+      try {
+        const res = await axios.get(`/admin/room-compatibility?student_id=${selectedStudent.id}`);
+        if (res.data.success) {
+          setCompatibility(res.data.data);
+        }
+      } catch (err) {
+        console.error('Compatibility error:', err);
+      } finally {
+        setLoadingCompatibility(false);
+      }
+    }
+    fetchCompat();
+  }, [selectedStudent]);
 
   useEffect(() => {
     async function load() {
@@ -193,20 +216,47 @@ export default function AdminStudentsPage() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Available Room</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                  Available Room {loadingCompatibility && <span className="text-[10px] text-indigo-500 animate-pulse">(AI Analyzing...)</span>}
+                </label>
                 <select
                   className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                   value={selectedRoom}
                   onChange={e => setSelectedRoom(e.target.value)}
                 >
                   <option value="">Select room...</option>
-                  {availableRooms.map(r => (
-                    <option key={r.id} value={r.id}>
-                      Room {r.room_number} — {r.room_type} ({r.occupied}/{r.capacity} occupied)
-                    </option>
-                  ))}
+                  {availableRooms.map(r => {
+                    const comp = compatibility.find(c => c.room_id === r.id);
+                    const scoreText = comp ? ` (AI Match: ${comp.score}% - ${comp.status})` : '';
+                    return (
+                      <option key={r.id} value={r.id}>
+                        Room {r.room_number} — {r.room_type} ({r.occupied}/{r.capacity} occupied){scoreText}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
+
+              {selectedRoom && compatibility.length > 0 && (
+                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                  <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                    AI Compatibility Rationale
+                  </p>
+                  {(() => {
+                    const comp = compatibility.find(c => c.room_id === parseInt(selectedRoom));
+                    if (!comp) return <p className="text-xs text-slate-500">Calculating compatibility...</p>;
+                    return (
+                      <div>
+                        <p className="text-xs text-slate-700 font-semibold leading-relaxed">{comp.reason}</p>
+                        {comp.score >= 85 && (
+                          <span className="inline-block mt-2 px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-extrabold uppercase rounded-full">Highly Recommended Match</span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
 
             <button

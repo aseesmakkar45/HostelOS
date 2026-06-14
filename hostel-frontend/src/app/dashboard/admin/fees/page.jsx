@@ -238,7 +238,7 @@ export default function AdminFeesPage() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Amount (₹)</label>
                 <input
                   type="number"
-                  placeholder="e.g. 1200"
+                  placeholder="e.g. 12000 (Hostel Rent), 3500 (Mess Fee)"
                   value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
                   className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"

@@ -16,7 +16,8 @@ import {
   Activity,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -30,6 +31,7 @@ import {
 
 export default function AdminDashboard() {
   const [financeData, setFinanceData] = useState(null);
+  const [aiInsights, setAiInsights] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,6 +40,10 @@ export default function AdminDashboard() {
         const res = await axios.get('/admin/finance');
         if (res.data.success) {
           setFinanceData(res.data.data);
+        }
+        const aiRes = await axios.get('/admin/ai-insights').catch(() => null);
+        if (aiRes?.data?.success) {
+          setAiInsights(aiRes.data.data);
         }
       } catch (err) {
         console.error('Error loading finance dashboard:', err);
@@ -253,6 +259,24 @@ export default function AdminDashboard() {
                   </div>
                   <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl"></div>
                 </div>
+
+                {/* AI Recommendations */}
+                {aiInsights.length > 0 && (
+                  <div className="bg-indigo-50/50 border border-indigo-100 rounded-[2rem] p-8 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
+                      <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">AI Coordinator Insights</h3>
+                    </div>
+                    <div className="space-y-4">
+                      {aiInsights.map((insight, idx) => (
+                        <div key={idx} className="flex gap-3 items-start">
+                          <span className="w-2 h-2 bg-indigo-600 rounded-full mt-1.5 shrink-0"></span>
+                          <p className="text-xs text-slate-700 font-semibold leading-relaxed">{insight}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Operations logs */}
                 <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm">

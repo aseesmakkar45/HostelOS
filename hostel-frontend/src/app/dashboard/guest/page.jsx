@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   UserCheck, 
   QrCode, 
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function GuestPortal() {
+  const { showToast } = useAuth() || {};
   const [status, setStatus] = useState('Approval Pending');
   const [loading, setLoading] = useState(false);
   const [guestName, setGuestName] = useState('Jayesh Verma');
@@ -33,17 +35,17 @@ export default function GuestPortal() {
     setTimeout(() => {
       setLoading(false);
       setStatus('Approved');
-      alert('Pass Status updated: Approved!');
+      if (showToast) showToast('Pass Status updated: Approved!', 'success');
     }, 1500);
   };
 
   const handleGenerateRequest = (e) => {
     e.preventDefault();
-    alert(`Instant pass requested for ${guestName} from ${entryTime} to ${exitTime}.`);
+    if (showToast) showToast(`Instant pass requested for ${guestName} from ${entryTime} to ${exitTime}.`, 'info');
   };
 
   const handleQuickReport = (item) => {
-    alert(`Reported ${item} issue to Hostel desk.`);
+    if (showToast) showToast(`Reported ${item} issue to Hostel desk.`, 'success');
   };
 
   return (
@@ -115,7 +117,7 @@ export default function GuestPortal() {
                       Check Status
                     </button>
                     <button 
-                      onClick={() => alert('Modify pass modal opened')}
+                      onClick={() => showToast && showToast('Modify pass modal opened', 'info')}
                       className="px-6 py-3 bg-slate-50 text-slate-600 border border-slate-100 font-bold rounded-2xl hover:bg-slate-100 transition-all text-sm cursor-pointer"
                     >
                       Modify Request
@@ -288,7 +290,7 @@ export default function GuestPortal() {
               <h4 className="font-extrabold text-xl mb-2">Gate Assistance</h4>
               <p className="text-slate-400 text-sm mb-6">Facing issues with QR scanning or entry? Contact gate staff now.</p>
               <button 
-                onClick={() => alert('Calling Helpdesk at +91 99999 88888')}
+                onClick={() => showToast && showToast('Calling Helpdesk at +91 99999 88888...', 'info')}
                 className="w-full py-4 bg-white text-slate-900 font-bold rounded-2xl hover:bg-slate-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 Call Gate Helpdesk

@@ -18,32 +18,48 @@ import {
   Scan,
   Database,
   Wifi,
-  Loader2
+  Loader2,
+  CheckCircle2,
+  BookOpen,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  RefreshCw,
+  UserCheck,
+  ChevronDown
 } from 'lucide-react';
+import * as faceapi from 'face-api.js';
 
 export default function GateEntryKiosk() {
-  const { logout } = useAuth();
+  const { logout, showToast } = useAuth() || {};
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [qrCodeInput, setQrCodeInput] = useState('');
   
   const [verifying, setVerifying] = useState(false);
-  const [result, setResult] = useState(null); // { success: true/false, message: '', data: {} }
-  const [logs, setLogs] = useState([
-    { name: 'Aarav Sharma', type: 'Student', room: 'Room 101', event: 'In', time: 'Just Now', icon: 'in' },
-    { name: 'Priya Sharma', type: 'Student', room: 'Room 102', event: 'Out', time: '2m ago', icon: 'out' },
-    { name: 'Rahul Verma', type: 'Student', room: 'Room 101', event: 'In', time: '5m ago', icon: 'in' }
-  ]);
+  const verifyingRef = useRef(false);
+  const [result, setResult] = useState(null);
+  const [logs, setLogs] = useState([]);
+
+  // Logbook state
+  const [logbook, setLogbook] = useState([]);
+  const [logbookTab, setLogbookTab] = useState('all');
+  const [logbookLoading, setLogbookLoading] = useState(false);
+  const [logbookOpen, setLogbookOpen] = useState(true);
 
   // Biometric camera states
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const modelRef = useRef(null);
   const animationRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [modelLoaded, setModelLoaded] = useState(false);
-  const [liveFacePrint, setLiveFacePrint] = useState(null); // [ratio1, ratio2, ratio3]
   const [cameraStream, setCameraStream] = useState(null);
+  
+  // Face Recognition States
+  const [faceMatcher, setFaceMatcher] = useState(null);
+  const faceMatcherRef = useRef(null); // Ref to avoid stale closure in detection loop
+  const [registeredFacesCount, setRegisteredFacesCount] = useState(0);
+  const cooldownRef = useRef(false);
+  const unmatchedCounterRef = useRef(0);
 
   // Load clock
   useEffect(() => {
@@ -55,45 +71,82 @@ export default function GateEntryKiosk() {
     return () => clearInterval(timer);
   }, []);
 
-  // Load TFJS & BlazeFace
+  // Fetch logbook
+  const fetchLogBook = async () => {
+    try {
+      setLogbookLoading(true);
+      const res = await axios.get('/gate/logbook');
+      if (res.data.success) setLogbook(res.data.data);
+    } catch (e) {
+      console.error('Logbook fetch error:', e.message);
+    } finally {
+      setLogbookLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogBook();
+    const interval = setInterval(fetchLogBook, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch Database Faces & Load TFJS Models
   useEffect(() => {
     let active = true;
 
-    async function loadModel() {
+    // Helper to build the FaceMatcher from DB
+    async function refreshFaceMatcher() {
       try {
-        if (!window.tf) {
-          const tfScript = document.createElement('script');
-          tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs';
-          tfScript.async = true;
-          document.body.appendChild(tfScript);
-          await new Promise((resolve) => { tfScript.onload = resolve; });
-        }
-
-        if (!window.blazeface) {
-          const bfScript = document.createElement('script');
-          bfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface';
-          bfScript.async = true;
-          document.body.appendChild(bfScript);
-          await new Promise((resolve) => { bfScript.onload = resolve; });
-        }
-
-        if (active && window.blazeface) {
-          const loadedModel = await window.blazeface.load();
-          modelRef.current = loadedModel;
-          setModelLoaded(true);
-          // Auto start camera for gate kiosk
-          startWebcam();
+        const res = await axios.get('/gate/faces');
+        if (res.data.success && res.data.data.length > 0) {
+          setRegisteredFacesCount(res.data.data.length);
+          const labeledDescriptors = res.data.data.map(user => {
+            const arr = JSON.parse(user.face_data);
+            return new faceapi.LabeledFaceDescriptors(String(user.id), [new Float32Array(arr)]);
+          });
+          const matcher = new faceapi.FaceMatcher(labeledDescriptors, 0.55); // Slightly lenient threshold
+          faceMatcherRef.current = matcher;
+          setFaceMatcher(matcher);
         }
       } catch (err) {
-        console.error('Gate Kiosk model load error:', err);
+        console.error('Face reload error:', err.message);
       }
     }
 
-    loadModel();
+    async function loadResources() {
+      try {
+        // 1. Load Models first
+        const MODEL_URL = '/models';
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        ]);
+
+        // 2. Fetch Registered Faces from Database
+        await refreshFaceMatcher();
+
+        if (active) {
+          setModelLoaded(true);
+          startWebcam();
+
+          // Reload face database every 30s to pick up newly registered students
+          const faceReloadTimer = setInterval(() => {
+            if (active) refreshFaceMatcher();
+          }, 30000);
+
+          return () => clearInterval(faceReloadTimer);
+        }
+      } catch (err) {
+        console.error('Gate Kiosk resource load error:', err);
+      }
+    }
+
+    loadResources();
 
     return () => {
       active = false;
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      if (animationRef.current) clearInterval(animationRef.current);
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
       }
@@ -105,10 +158,8 @@ export default function GateEntryKiosk() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' }
       });
-      // Set active FIRST so video element renders in DOM
       setCameraActive(true);
       setCameraStream(stream);
-      // Brief timeout to allow React to commit <video> to DOM
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -123,173 +174,145 @@ export default function GateEntryKiosk() {
     }
   };
 
-  const calculateDistance = (p1, p2) => {
-    return Math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2);
-  };
-
   const startFaceDetectionLoop = () => {
     const detect = async () => {
       if (
         videoRef.current &&
         videoRef.current.readyState === 4 &&
-        modelRef.current &&
         canvasRef.current
       ) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
+        const displaySize = { width: video.videoWidth, height: video.videoHeight };
+        faceapi.matchDimensions(canvas, displaySize);
+
+        const detection = await faceapi.detectSingleFace(video)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
         const ctx = canvas.getContext('2d');
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const predictions = await modelRef.current.estimateFaces(video, false);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (predictions.length > 0) {
-          const prediction = predictions[0];
-          const start = prediction.topLeft;
-          const end = prediction.bottomRight;
-          const size = [end[0] - start[0], end[1] - start[1]];
-
-          // Draw Scan Box
-          ctx.strokeStyle = '#6366f1';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(start[0], start[1], size[0], size[1]);
-
-          // Draw landmarks
-          const landmarks = prediction.landmarks;
-          ctx.fillStyle = '#10b981';
-          for (let i = 0; i < landmarks.length; i++) {
-            ctx.beginPath();
-            ctx.arc(landmarks[i][0], landmarks[i][1], 5, 0, 2 * Math.PI);
-            ctx.fill();
-          }
-
-          // Calculate facial ratios
-          const rightEye = landmarks[0];
-          const leftEye = landmarks[1];
-          const nose = landmarks[2];
-          const mouth = landmarks[3];
-
-          const eyeDist = calculateDistance(rightEye, leftEye);
-          const noseToMouth = calculateDistance(nose, mouth);
-          const eyeMidpoint = [(rightEye[0] + leftEye[0]) / 2, (rightEye[1] + leftEye[1]) / 2];
-          const eyeToNose = calculateDistance(eyeMidpoint, nose);
-
-          const ratio1 = eyeDist / (noseToMouth || 1);
-          const ratio2 = eyeToNose / (noseToMouth || 1);
+        if (detection) {
+          const resizedDetection = faceapi.resizeResults(detection, displaySize);
           
-          const rightEyeToNose = calculateDistance(rightEye, nose);
-          const leftEyeToNose = calculateDistance(leftEye, nose);
-          const ratio3 = rightEyeToNose / (leftEyeToNose || 1);
+          // Draw Box
+          const box = resizedDetection.detection.box;
 
-          setLiveFacePrint([ratio1, ratio2, ratio3]);
+          // Use REFS to avoid stale closure - these always reflect latest values
+          const currentMatcher = faceMatcherRef.current;
+          const isVerifying = verifyingRef.current;
+
+          if (currentMatcher && !cooldownRef.current && !isVerifying) {
+            const bestMatch = currentMatcher.findBestMatch(detection.descriptor);
+            
+            if (bestMatch.label !== 'unknown') {
+              const matchedBox = new faceapi.draw.DrawBox(box, { label: 'Checking...', lineWidth: 4, boxColor: '#10b981' });
+              matchedBox.draw(canvas);
+              unmatchedCounterRef.current = 0;
+              handleFaceAutoVerify(bestMatch.label);
+            } else {
+              const drawBox = new faceapi.draw.DrawBox(box, { label: 'Scanning...', lineWidth: 3, boxColor: '#6366f1' });
+              drawBox.draw(canvas);
+
+              unmatchedCounterRef.current += 1;
+              if (unmatchedCounterRef.current >= 5) { // 5 frames * 300ms = 1.5s
+                unmatchedCounterRef.current = 0;
+                handleFaceMismatch();
+              }
+            }
+          }
         } else {
-          setLiveFacePrint(null);
+          unmatchedCounterRef.current = 0;
         }
       }
-      animationRef.current = requestAnimationFrame(detect);
     };
-    animationRef.current = requestAnimationFrame(detect);
+    animationRef.current = setInterval(detect, 300);
   };
 
-  const handleVerify = async (e) => {
-    e.preventDefault();
-    if (!qrCodeInput.trim()) return;
-
+  const handleFaceAutoVerify = async (studentId) => {
+    if (cooldownRef.current) return;
+    cooldownRef.current = true;
+    verifyingRef.current = true;
     setVerifying(true);
     setResult(null);
 
-    // Short scanning delay to simulate biometric sweep
-    setTimeout(async () => {
-      try {
-        const response = await axios.post('/gate/verify', { qr_code: qrCodeInput });
-        
-        if (response.data.success) {
-          const pass = response.data.data;
-          
-          // Verify biometric template if registered
-          if (pass.face_data) {
-            const registeredRatios = JSON.parse(pass.face_data);
-            
-            if (liveFacePrint) {
-              // Compare vectors
-              const distance = Math.sqrt(
-                (liveFacePrint[0] - registeredRatios[0]) ** 2 +
-                (liveFacePrint[1] - registeredRatios[1]) ** 2 +
-                (liveFacePrint[2] - registeredRatios[2]) ** 2
-              );
-
-              // Match tolerance threshold (0.18 represents high structural similarity)
-              if (distance < 0.18) {
-                const matchScore = Math.round((1 - distance) * 100);
-                setResult({
-                  success: true,
-                  message: `Biometric Access Granted — Face Match Confirmed (${matchScore}% match). Resident: ${pass.student_name}, Room: ${pass.room_number}`,
-                  data: pass
-                });
-
-                // Add to log
-                setLogs(prev => [
-                  { 
-                    name: pass.student_name, 
-                    type: 'Student', 
-                    room: pass.room_number ? `Room ${pass.room_number}` : 'Visitor', 
-                    event: 'In', 
-                    time: 'Just Now', 
-                    icon: 'in' 
-                  },
-                  ...prev
-                ]);
-              } else {
-                setResult({
-                  success: false,
-                  message: `Biometric Verification Mismatch! Facial proportions do not match profile signature.`
-                });
-              }
-            } else {
-              setResult({
-                success: false,
-                message: `Biometric Scanner Error: No face detected in video feed. Cannot verify identity.`
-              });
-            }
-          } else {
-            // No face ID registered fallback
-            setResult({
-              success: true,
-              message: `Verification Approved — ${pass.student_name}, Room ${pass.room_number}. (Warning: No Face ID Registered — Please setup Face ID in Student Hub)`,
-              data: pass
-            });
-
-            // Add to log
-            setLogs(prev => [
-              { 
-                name: pass.student_name, 
-                type: 'Student', 
-                room: pass.room_number ? `Room ${pass.room_number}` : 'Visitor', 
-                event: 'In', 
-                time: 'Just Now', 
-                icon: 'in' 
-              },
-              ...prev
-            ]);
-          }
-        } else {
-          setResult({
-            success: false,
-            message: response.data.error || 'Verification Failed'
-          });
-        }
-      } catch (err) {
+    try {
+      const response = await axios.post('/gate/verify-face', { student_id: studentId });
+      
+      if (response.data.success) {
+        const pass = response.data.data;
+        setResult({
+          success: true,
+          message: 'Face Verified',
+          studentName: pass.student_name,
+          rollNumber: pass.roll_number,
+          type: 'face'
+        });
+        fetchLogBook();
+      } else {
         setResult({
           success: false,
-          message: err.response?.data?.error || 'Verification Failed: Pass expired, used, or invalid.'
+          message: 'Face Mismatch',
+          type: 'face'
         });
-      } finally {
-        setVerifying(false);
-        setQrCodeInput('');
       }
-    }, 1500);
+    } catch (err) {
+      setResult({
+        success: false,
+        message: 'Face Mismatch',
+        type: 'face'
+      });
+    } finally {
+      verifyingRef.current = false;
+      setVerifying(false);
+      setTimeout(() => {
+        cooldownRef.current = false;
+        setResult(null);
+      }, 4000);
+    }
+  };
+
+  const handleFaceMismatch = () => {
+    if (cooldownRef.current) return;
+    cooldownRef.current = true;
+    setResult({
+      success: false,
+      message: 'Face Mismatch',
+      type: 'face'
+    });
+    setTimeout(() => {
+      cooldownRef.current = false;
+      setResult(null);
+    }, 4000);
+  };
+
+  const handleQRVerify = async (e) => {
+    e.preventDefault();
+    if (!qrCodeInput.trim() || verifying) return;
+    setVerifying(true);
+    setResult(null);
+    try {
+      const response = await axios.post('/gate/verify', { qr_code: qrCodeInput.trim() });
+      if (response.data.success) {
+        setResult({
+          success: true,
+          message: response.data.data.action === 'Exit' ? 'Exit Approved' : 'Entry Approved',
+          type: 'qr'
+        });
+        fetchLogBook();
+      } else {
+        setResult({ success: false, message: response.data.error || 'Invalid Pass', type: 'qr' });
+      }
+    } catch (err) {
+      setResult({ success: false, message: err.response?.data?.error || 'Invalid or Expired Pass', type: 'qr' });
+    } finally {
+      setVerifying(false);
+      setQrCodeInput('');
+      setTimeout(() => {
+        setResult(null);
+      }, 4000);
+    }
   };
 
   return (
@@ -310,7 +333,7 @@ export default function GateEntryKiosk() {
           <div className="text-center">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Status</p>
             <p className="text-sm font-black text-indigo-400">
-              {modelLoaded ? 'Biometric Engine Online' : 'Starting Core TFJS...'}
+              {modelLoaded ? `Security Active` : 'Starting Camera...'}
             </p>
           </div>
           <div className="h-10 w-[1px] bg-slate-800"></div>
@@ -332,202 +355,263 @@ export default function GateEntryKiosk() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 grid grid-cols-12 gap-0 overflow-hidden">
-        {/* Verification Left Panel */}
-        <div className="col-span-8 flex flex-col p-10 space-y-8 overflow-y-auto custom-scrollbar">
+      <main className="flex-1 flex flex-col items-center justify-center p-8 md:p-16 overflow-y-auto custom-scrollbar">
+        <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-12">
           
-          <div className="grid grid-cols-2 gap-8">
-            {/* Camera Frame */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Camera className="w-4 h-4 text-indigo-500" /> AI Face Verification
-              </h3>
-              <div className="aspect-video bg-slate-950 rounded-[2.5rem] border-2 border-slate-800 overflow-hidden relative group">
-                {/* Always in DOM so videoRef is never null */}
-                <video 
-                  ref={videoRef}
-                  className={`absolute inset-0 w-full h-full object-cover scale-x-[-1] opacity-70 ${cameraActive ? 'block' : 'hidden'}`}
-                  muted
-                  playsInline
-                  autoPlay
-                />
-                <canvas 
-                  ref={canvasRef}
-                  className={`absolute inset-0 w-full h-full scale-x-[-1] z-10 pointer-events-none ${cameraActive ? 'block' : 'hidden'}`}
-                />
-                {cameraActive && (
-                  <div className="absolute inset-x-10 top-0 h-0.5 bg-indigo-500/50 shadow-md shadow-indigo-500 animate-bounce z-20"></div>
-                )}
-                {!cameraActive && (
-                  <div className="absolute inset-0 flex items-center justify-center text-slate-600 bg-slate-950">
-                    <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-                  </div>
-                )}
-                
-                <div className="absolute bottom-6 left-6 right-6 z-30 flex justify-between items-end">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                      <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Liveness Active</span>
-                    </div>
-                    <p className="text-sm font-bold text-white">Scanning Environment...</p>
-                  </div>
-                  <div className="bg-indigo-600/20 text-indigo-400 px-3 py-1.5 rounded-xl border border-indigo-500/30 text-xs font-bold">30 FPS</div>
+          {/* Left Panel: Camera Verification */}
+          <div className="space-y-4 flex flex-col">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Camera className="w-4 h-4 text-indigo-500" /> Face Verification
+            </h3>
+            <div className="aspect-video bg-slate-950 rounded-[2.5rem] border-2 border-slate-800 overflow-hidden relative group shadow-2xl flex-1 min-h-[300px]">
+              <video 
+                ref={videoRef}
+                className={`absolute inset-0 w-full h-full object-cover scale-x-[-1] opacity-80 ${cameraActive ? 'block' : 'hidden'}`}
+                muted
+                playsInline
+                autoPlay
+              />
+              <canvas 
+                ref={canvasRef}
+                className={`absolute inset-0 w-full h-full scale-x-[-1] z-10 pointer-events-none ${cameraActive ? 'block' : 'hidden'}`}
+              />
+              {cameraActive && !verifying && !result && (
+                <div className="absolute inset-x-10 top-0 h-0.5 bg-indigo-500/50 shadow-md shadow-indigo-500 animate-bounce z-20"></div>
+              )}
+              {!cameraActive && (
+                <div className="absolute inset-0 flex items-center justify-center text-slate-655 bg-slate-950">
+                  <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
                 </div>
-              </div>
-            </div>
-
-            {/* QR Scan Input */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <QrCode className="w-4 h-4 text-indigo-500" /> Digital Pass Scanner
-              </h3>
-              <div className="aspect-video bg-slate-950 rounded-[2.5rem] border-2 border-slate-800 overflow-hidden relative flex flex-col items-center justify-center p-6">
-                <form onSubmit={handleVerify} className="w-full space-y-4 flex flex-col items-center">
-                  <div className="w-full relative">
-                    <input 
-                      type="text" 
-                      placeholder="Paste or type QR Code string..."
-                      value={qrCodeInput}
-                      onChange={(e) => setQrCodeInput(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4 text-white text-sm outline-none focus:border-indigo-500 transition-all text-center"
-                    />
+              )}
+              {verifying && (
+                <div className="absolute inset-0 z-30 bg-indigo-950/80 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-indigo-500 rounded-[2.3rem]">
+                   <Scan className="w-12 h-12 text-indigo-400 mb-2 animate-pulse" />
+                   <p className="font-bold text-white tracking-widest">VERIFYING...</p>
+                </div>
+              )}
+              {result && result.type === 'face' && (
+                <div className={`absolute inset-0 z-40 backdrop-blur-md flex flex-col items-center justify-center gap-3 border-4 rounded-[2.3rem] transition-all duration-300 ${
+                  result.success ? 'bg-emerald-950/90 border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.3)]' : 'bg-rose-950/90 border-rose-500 shadow-[0_0_50px_rgba(239,68,68,0.3)]'
+                }`}>
+                  {result.success ? (
+                    <>
+                      <CheckCircle2 className="w-14 h-14 text-emerald-400 animate-bounce" />
+                      <p className="text-3xl font-black tracking-wider uppercase text-emerald-400">{result.message}</p>
+                      {result.studentName && (
+                        <div className="text-center mt-1 space-y-1">
+                          <p className="text-xl font-extrabold text-white tracking-wide">{result.studentName}</p>
+                          {result.rollNumber && (
+                            <p className="text-sm font-bold text-emerald-300 tracking-widest uppercase">{result.rollNumber}</p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-14 h-14 text-rose-400 animate-bounce" />
+                      <p className="text-3xl font-black tracking-wider uppercase text-rose-400">{result.message}</p>
+                    </>
+                  )}
+                </div>
+              )}
+              
+              <div className="absolute bottom-6 left-6 right-6 z-30 flex justify-between items-end pointer-events-none">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Scanning Active</span>
                   </div>
-                  <button 
-                    type="submit"
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    Scan QR Code
-                  </button>
-                </form>
-                <p className="text-slate-500 text-xs font-medium mt-4">Simulate pass scanning by typing code above</p>
+                  <p className="text-sm font-bold text-white drop-shadow-md">Look directly at the camera</p>
+                </div>
+                <div className="bg-indigo-600/60 text-white px-3 py-1.5 rounded-xl border border-indigo-400/50 text-xs font-bold backdrop-blur-md">Auto-Gate</div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-8">
-            {/* Live Verification Box */}
-            <div className="col-span-12 lg:col-span-5 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Verification Status</h3>
-                <Info className="w-4 h-4 text-slate-600" />
-              </div>
-
-              {verifying ? (
-                <div className="flex flex-col items-center justify-center py-10 space-y-3">
-                  <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                  <p className="text-sm font-semibold text-indigo-400 animate-pulse">Checking facial coordinates...</p>
-                </div>
-              ) : result ? (
-                <div className={`p-6 rounded-2xl border ${
-                  result.success ? 'bg-emerald-950/40 border-emerald-500/30' : 'bg-rose-950/40 border-rose-500/30'
+          {/* Right Panel: QR Verification */}
+          <div className="space-y-4 flex flex-col">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <QrCode className="w-4 h-4 text-indigo-500" /> Digital Pass Scanner
+            </h3>
+            <div className="aspect-video bg-slate-955 rounded-[2.5rem] border-2 border-slate-800 overflow-hidden relative flex-1 min-h-[300px] flex flex-col items-center justify-center p-8 shadow-2xl bg-slate-950">
+              {result && result.type === 'qr' && (
+                <div className={`absolute inset-0 z-40 backdrop-blur-md flex flex-col items-center justify-center border-4 rounded-[2.3rem] transition-all duration-300 ${
+                  result.success ? 'bg-emerald-950/90 border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.3)]' : 'bg-rose-950/90 border-rose-500 shadow-[0_0_50px_rgba(239,68,68,0.3)]'
                 }`}>
-                  <p className={`text-sm font-bold ${result.success ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {result.success ? (
+                    <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-2 animate-bounce" />
+                  ) : (
+                    <AlertTriangle className="w-16 h-16 text-rose-400 mb-2 animate-bounce" />
+                  )}
+                  <p className={`text-2xl font-black tracking-wider uppercase ${result.success ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {result.message}
                   </p>
                 </div>
-              ) : (
-                <div className="flex items-center gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                  <div className="w-16 h-16 bg-slate-900 rounded-xl flex items-center justify-center text-slate-700">
-                    <User className="w-8 h-8" />
-                  </div>
-                  <div className="flex-1">
-                    <div>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-tighter">No Active Scan</p>
-                      <p className="text-lg font-bold text-white">System Idle</p>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="w-2 h-2 bg-slate-500 rounded-full"></span>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Awaiting Input</p>
-                    </div>
-                  </div>
+              )}
+              {verifying && !result && (
+                <div className="absolute inset-0 z-30 bg-indigo-950/80 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-indigo-500 rounded-[2.3rem]">
+                   <Loader2 className="w-10 h-10 text-indigo-400 mb-2 animate-spin" />
+                   <p className="font-bold text-white tracking-widest">VERIFYING...</p>
                 </div>
               )}
-            </div>
-
-            {/* Smart Alerts */}
-            <div className="col-span-12 lg:col-span-7 bg-amber-500/5 border border-amber-500/20 rounded-[2.5rem] p-8 flex flex-col justify-between overflow-hidden relative">
-              <div className="absolute -right-20 -top-20 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl"></div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-amber-500/20 text-amber-500 rounded-xl flex items-center justify-center shadow-inner">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-sm font-bold text-amber-500 uppercase tracking-widest">AI Smart Alert</h3>
+              <form onSubmit={handleQRVerify} className="w-full max-w-sm space-y-6 flex flex-col items-center z-10">
+                <div className="w-full relative">
+                  <input 
+                    type="text" 
+                    placeholder="Enter Gate Pass QR Code..."
+                    value={qrCodeInput}
+                    onChange={(e) => setQrCodeInput(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4 text-white text-sm outline-none focus:border-indigo-500 transition-all text-center tracking-wider font-semibold placeholder:text-slate-500"
+                  />
                 </div>
-                <div className="space-y-4">
-                  <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-4">
-                    <Users className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-white font-bold">High Traffic Warning</p>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">Current entry rate (12/min) exceeds standard capacity. AI predicts mess hall congestion in 10 minutes. Opening secondary gate.</p>
-                    </div>
-                  </div>
-                  <div className="p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-start gap-4">
-                    <AlertTriangle className="w-6 h-6 text-rose-500 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-white font-bold">Unauthorized Tailgating Detected</p>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">Vision system detected an unrecognized person following Student ID #402202. Warden notified.</p>
-                    </div>
-                  </div>
-                </div>
+                <button 
+                  type="submit"
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/20 text-sm"
+                >
+                  Verify QR Code
+                </button>
+              </form>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[180px] text-slate-800/10 font-black tracking-tighter opacity-10 pointer-events-none select-none z-0">
+                QR
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Live Access Logs Side Panel */}
-        <div className="col-span-4 bg-slate-950 border-l border-slate-800 flex flex-col overflow-hidden">
-          <div className="p-8 border-b border-slate-800 bg-slate-900/30">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Live Access Logs</h3>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">System Live</span>
-              </div>
-            </div>
-            <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-              <button className="flex-1 py-2 rounded-xl text-[10px] font-extrabold uppercase bg-slate-800 text-white cursor-pointer">All Logs</button>
-              <button className="flex-1 py-2 rounded-xl text-[10px] font-extrabold uppercase text-slate-500 cursor-pointer animate-pulse">Live</button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
-            {logs.map((log, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <div className="relative">
-                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${log.name}`} className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800" alt="avatar" />
-                  <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-slate-950 flex items-center justify-center text-[10px] text-white ${
-                    log.event === 'In' ? 'bg-emerald-500' : 'bg-rose-500'
-                  }`}>
-                    {log.event === 'In' ? <LogIn className="w-2 h-2" /> : <LogOut className="w-2 h-2" />}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div>
-                    <p className="text-xs font-bold text-white">{log.name}</p>
-                    <p className="text-[10px] text-slate-500 font-medium">{log.type} • {log.room}</p>
-                  </div>
-                </div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{log.time}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-8 bg-slate-900/50 border-t border-slate-800 space-y-4">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Verification Fallback</p>
-            <button 
-              onClick={() => alert('Manual override activated. Entry log captured.')}
-              className="w-full py-4 border-2 border-dashed border-slate-800 rounded-2xl text-slate-400 font-bold hover:border-indigo-500 hover:text-indigo-400 transition-all flex items-center justify-center gap-3 cursor-pointer"
-            >
-              Enter Warden Code
-            </button>
-          </div>
         </div>
       </main>
 
+      {/* ===== GATE LOG BOOK ===== */}
+      <section className="border-t border-slate-800 bg-slate-950/60 backdrop-blur-xl">
+        {/* Collapsible header */}
+        <button
+          onClick={() => setLogbookOpen(o => !o)}
+          className="w-full flex items-center justify-between px-10 py-4 hover:bg-slate-900/40 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-sm font-black text-white uppercase tracking-widest">Gate Log Book</span>
+            <span className="text-[10px] font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+              {logbook.length} records
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); fetchLogBook(); }}
+              className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 text-slate-400 ${logbookLoading ? 'animate-spin' : ''}`} />
+            </button>
+            <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${logbookOpen ? 'rotate-180' : ''}`} />
+          </div>
+        </button>
+
+        {logbookOpen && (
+          <div className="px-10 pb-6">
+            {/* Tabs */}
+            <div className="flex items-center gap-2 mb-4">
+              {[
+                { key: 'all',           label: 'All',            count: logbook.length },
+                { key: 'student-entry', label: 'Student Entry',  count: logbook.filter(l => l.log_type === 'student-entry').length },
+                { key: 'student-exit',  label: 'Student Exit',   count: logbook.filter(l => l.log_type === 'student-exit').length },
+                { key: 'visitor',       label: 'Visitor',        count: logbook.filter(l => l.log_type === 'visitor').length },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setLogbookTab(tab.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    logbookTab === tab.key
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-600'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                    logbookTab === tab.key ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-500'
+                  }`}>{tab.count}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Table */}
+            <div className="rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-slate-900 border-b border-slate-800">
+                      <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Type</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Person</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Roll / Host</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Room</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Purpose</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Method</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(logbookTab === 'all' ? logbook : logbook.filter(l => l.log_type === logbookTab))
+                      .length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-10 text-center text-slate-600 text-sm">
+                          No records found.
+                        </td>
+                      </tr>
+                    ) : (
+                      (logbookTab === 'all' ? logbook : logbook.filter(l => l.log_type === logbookTab)).map((entry, i) => {
+                        const typeConfig = {
+                          'student-entry': { label: 'Student In',  icon: <ArrowDownCircle className="w-3.5 h-3.5" />, cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+                          'student-exit':  { label: 'Student Out', icon: <ArrowUpCircle className="w-3.5 h-3.5" />,   cls: 'bg-amber-500/10  text-amber-400  border-amber-500/30'  },
+                          'visitor':       { label: 'Visitor In',  icon: <UserCheck className="w-3.5 h-3.5" />,       cls: 'bg-blue-500/10  text-blue-400   border-blue-500/30'   },
+                        }[entry.log_type] || { label: entry.log_type, icon: null, cls: 'bg-slate-800 text-slate-400' };
+
+                        const ts = new Date(entry.entry_time);
+                        const timeStr = ts.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+                        const dateStr = ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                        return (
+                          <tr key={`${entry.id}-${i}`} className={`border-b border-slate-800/50 hover:bg-slate-900/40 transition-colors ${
+                            i % 2 === 0 ? 'bg-slate-950/20' : ''
+                          }`}>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wide ${typeConfig.cls}`}>
+                                {typeConfig.icon}{typeConfig.label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="font-bold text-white text-xs">{entry.person_name || '—'}</p>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-400 font-mono">
+                              {entry.log_type === 'visitor'
+                                ? (entry.host_name ? `Host: ${entry.host_name}` : '—')
+                                : (entry.roll_number || '—')}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-400">{entry.room_number || '—'}</td>
+                            <td className="px-4 py-3 text-xs text-slate-400">{entry.purpose || '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                                {entry.verified_by || 'AI'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                              <p className="font-bold text-slate-300">{timeStr}</p>
+                              <p>{dateStr}</p>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
       {/* Footer */}
-      <footer className="h-20 bg-slate-950 border-t border-slate-800 flex items-center justify-center px-10 shrink-0">
+      <footer className="h-16 bg-slate-950 border-t border-slate-800 flex items-center justify-center px-10 shrink-0">
         <div className="flex gap-12 text-slate-400">
           <div className="flex items-center gap-2">
             <Scan className="w-4 h-4 text-indigo-500" />
@@ -539,7 +623,7 @@ export default function GateEntryKiosk() {
           </div>
           <div className="flex items-center gap-2">
             <Database className="w-4 h-4 text-indigo-500" />
-            <span className="text-xs font-bold">Neon SQL Cloud Connected</span>
+            <span className="text-xs font-bold">Vector Database Connected</span>
           </div>
           <div className="flex items-center gap-2">
             <Wifi className="w-4 h-4 text-emerald-500" />

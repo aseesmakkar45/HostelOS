@@ -101,7 +101,13 @@ export default function AdminMessPage() {
                           </div>
                           <textarea
                             rows={3}
-                            placeholder={`Enter ${meal} items (comma separated)...`}
+                            placeholder={
+                              meal === 'breakfast'
+                                ? 'e.g. Poha, Aloo Paratha, Chai, Banana'
+                                : meal === 'lunch'
+                                ? 'e.g. Dal Tadka, Jeera Rice, Roti, Sabzi, Salad, Pickle'
+                                : 'e.g. Rajma Chawal, Roti, Paneer Sabzi, Kheer'
+                            }
                             value={menu[day]?.[meal] || ''}
                             onChange={e => updateCell(day, meal, e.target.value)}
                             className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
