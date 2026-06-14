@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   PlusCircle, 
   Sparkles, 
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 
 export default function LeaveRequestPortal() {
+  const { showToast } = useAuth() || {};
   const [activeTab, setActiveTab] = useState('new');
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export default function LeaveRequestPortal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!fromDate || !toDate || !reason) {
-      alert('Please fill in all required fields.');
+      if (showToast) showToast('Please fill in all required fields.', 'error');
       return;
     }
 
@@ -83,7 +85,7 @@ export default function LeaveRequestPortal() {
       });
 
       if (response.data.success) {
-        alert('Leave application submitted successfully!');
+        if (showToast) showToast('Leave application submitted successfully!', 'success');
         setFromDate('');
         setToDate('');
         setReason('');
@@ -94,7 +96,7 @@ export default function LeaveRequestPortal() {
       }
     } catch (err) {
       console.error('Error applying for leave:', err);
-      alert('Failed to submit application.');
+      if (showToast) showToast('Failed to submit application.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -219,7 +221,7 @@ export default function LeaveRequestPortal() {
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Reason for Absence</label>
                         <textarea 
                           rows="3" 
-                          placeholder="Briefly describe your reason..." 
+                          placeholder="e.g. Attending family function (Diwali), Scheduled medical treatment at home, Parents request for festival celebration" 
                           value={reason}
                           onChange={(e) => setReason(e.target.value)}
                           required
@@ -232,7 +234,7 @@ export default function LeaveRequestPortal() {
                           <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Emergency Contact Name</label>
                           <input 
                             type="text" 
-                            placeholder="Guardian or Relative Name" 
+                            placeholder="e.g. Ramesh Kumar (Father), Sunita Devi (Mother)" 
                             value={emergencyName}
                             onChange={(e) => setEmergencyName(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-slate-700 outline-none focus:border-indigo-500 transition-all" 
@@ -371,7 +373,7 @@ export default function LeaveRequestPortal() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => alert('Opening full timeline...')}
+                    onClick={() => showToast && showToast('Opening full timeline...', 'info')}
                     className="w-full mt-10 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold hover:bg-white/10 transition-all cursor-pointer"
                   >
                     Expand Year View
@@ -402,7 +404,7 @@ export default function LeaveRequestPortal() {
                   <h4 className="font-extrabold text-xl mb-2">Need Extension?</h4>
                   <p className="text-indigo-100 text-sm mb-6">Already out and need more time? Contact the hostel warden immediately.</p>
                   <button 
-                    onClick={() => alert('Calling Warden Priya Sharma at +91 98765 43211')}
+                    onClick={() => showToast && showToast('Calling Warden Priya Sharma at +91 98765 43211', 'info')}
                     className="w-full py-3 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-indigo-50 transition-colors cursor-pointer"
                   >
                     Call Priya Sharma

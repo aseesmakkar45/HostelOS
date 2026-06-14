@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   Phone, 
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function RequestVisitorPass() {
+  const { showToast } = useAuth() || {};
   const [visitorName, setVisitorName] = useState('');
   const [relationship, setRelationship] = useState('');
   const [phone, setPhone] = useState('');
@@ -69,7 +71,7 @@ export default function RequestVisitorPass() {
       });
 
       if (response.data.success) {
-        alert('Pass requested successfully!');
+        if (showToast) showToast('Pass requested successfully!', 'success');
         setCurrentPass(response.data.data);
         
         // Reset form
@@ -138,7 +140,7 @@ export default function RequestVisitorPass() {
                       <label className="text-sm font-bold text-slate-700 ml-1">Guest Name</label>
                       <input 
                         type="text" 
-                        placeholder="Enter guest's full name" 
+                        placeholder="e.g. Priya Kumari / Rakesh Sharma" 
                         value={visitorName}
                         onChange={(e) => setVisitorName(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-slate-600 transition-all focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
@@ -169,7 +171,7 @@ export default function RequestVisitorPass() {
                         <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input 
                           type="tel" 
-                          placeholder="+1 (555) 000-0000" 
+                          placeholder="+91 98765 43210" 
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-5 py-4 text-slate-600 transition-all focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
@@ -183,7 +185,7 @@ export default function RequestVisitorPass() {
                         <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input 
                           type="email" 
-                          placeholder="guest@example.com" 
+                          placeholder="e.g. priya.sharma@gmail.com" 
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-5 py-4 text-slate-600 transition-all focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
@@ -233,7 +235,7 @@ export default function RequestVisitorPass() {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700 ml-1">Purpose of Visit</label>
                     <textarea 
-                      placeholder="Explain why the guest is visiting..." 
+                      placeholder="e.g. Parents visiting for Diwali festival, Attending convocation ceremony, Medical consultation" 
                       rows="4" 
                       value={purpose}
                       onChange={(e) => setPurpose(e.target.value)}

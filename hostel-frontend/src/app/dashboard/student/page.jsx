@@ -25,6 +25,7 @@ export default function StudentDashboard() {
   const [studentData, setStudentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [aiDismissed, setAiDismissed] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState([]);
 
   useEffect(() => {
     async function loadData() {
@@ -33,25 +34,30 @@ export default function StudentDashboard() {
         const feesRes = await axios.get('/student/fees').catch(() => null);
         const complaintsRes = await axios.get('/student/complaints').catch(() => null);
         const passesRes = await axios.get('/student/gatepasses').catch(() => null);
+        const aiRes = await axios.get('/student/ai-suggestions').catch(() => null);
+        const profileRes = await axios.get('/auth/me').catch(() => null);
 
         const room = roomRes?.data?.success ? roomRes.data.data : null;
         const fees = feesRes?.data?.success ? feesRes.data.data : [];
         const complaints = complaintsRes?.data?.success ? complaintsRes.data.data : [];
         const passes = passesRes?.data?.success ? passesRes.data.data : [];
+        const suggestions = aiRes?.data?.success ? aiRes.data.data : [];
+        const profile = profileRes?.data?.success ? profileRes.data.data : null;
 
         const pendingFees = fees.filter(f => f.status === 'pending').reduce((sum, f) => sum + parseFloat(f.amount), 0);
         const pendingComplaints = complaints.filter(c => c.status === 'pending' || c.status === 'in_progress').length;
         const activePass = passes.find(p => p.status === 'Approved' && !p.used);
 
         setStudentData({
-          roomNumber: room?.room_number || '101',
-          roomType: room?.room_type || 'Double Sharing',
-          floor: room?.floor || '1',
+          roomNumber: room?.room_number || 'Unallocated',
+          roomType: room?.room_type || '',
+          floor: room?.floor || '',
           pendingFees,
           pendingComplaints,
           activePass,
-          coupons: 42 // Mocked mess coupon amount
+          coupons: profile?.mess_coupons ?? 0
         });
+        setAiSuggestions(suggestions);
       } catch (err) {
         console.error('Error fetching student dashboard data:', err);
       } finally {
@@ -93,8 +99,12 @@ export default function StudentDashboard() {
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm card-hover flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">My Room</p>
-                    <h3 className="text-2xl font-black text-slate-900 mt-2">Room {studentData?.roomNumber}</h3>
-                    <p className="text-xs text-slate-500 mt-1 font-semibold">{studentData?.roomType} ({studentData?.floor}F)</p>
+                    <h3 className="text-2xl font-black text-slate-900 mt-2">
+                      {studentData?.roomNumber && studentData.roomNumber !== 'Unallocated' ? `Room ${studentData.roomNumber}` : 'Unallocated'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1 font-semibold">
+                      {studentData?.roomNumber && studentData.roomNumber !== 'Unallocated' ? `${studentData.roomType} (${studentData.floor}F)` : 'No Active Allocation'}
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm">
                     <Bed className="w-6 h-6" />
@@ -240,24 +250,29 @@ export default function StudentDashboard() {
                     <div className="absolute -right-10 -bottom-10 w-36 h-36 bg-indigo-500/10 rounded-full blur-3xl"></div>
                   </div>
 
-                  {/* AI Peak Alert */}
-                  {!aiDismissed && (
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-[2rem] p-6 flex flex-col gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
-                          <Sparkles className="w-5 h-5 animate-pulse" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-800">AI Peak Alert</h4>
-                          <p className="text-xs text-slate-600 font-medium leading-relaxed mt-1">Mess dining hall occupancy is predicted to peak in 15 minutes. Head there early to avoid queues!</p>
-                        </div>
+                  {/* AI Coordinator Insights */}
+                  {!aiDismissed && aiSuggestions.length > 0 && (
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-[2rem] p-6 flex flex-col gap-4 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-indigo-100/50 pb-3">
+                        <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
+                          AI Coordinator Insights
+                        </h4>
+                        <button 
+                          onClick={() => setAiDismissed(true)} 
+                          className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wider cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
                       </div>
-                      <button 
-                        onClick={() => setAiDismissed(true)}
-                        className="w-full py-2.5 bg-white hover:bg-slate-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold rounded-xl uppercase tracking-widest transition-all cursor-pointer"
-                      >
-                        Got it
-                      </button>
+                      <div className="space-y-4">
+                        {aiSuggestions.map((suggestion, idx) => (
+                          <div key={idx} className="flex gap-3 items-start">
+                            <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full mt-1.5 shrink-0"></span>
+                            <p className="text-xs text-slate-700 font-semibold leading-relaxed">{suggestion}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 

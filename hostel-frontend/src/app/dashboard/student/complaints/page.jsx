@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import axios from '@/lib/axios';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
-import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   ChevronDown, 
   Clock3, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function FileComplaint() {
+  const { showToast } = useAuth() || {};
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -59,7 +61,7 @@ export default function FileComplaint() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!category || !description) {
-      alert('Please fill out all required fields');
+      if (showToast) showToast('Please fill out all required fields', 'error');
       return;
     }
 
@@ -74,7 +76,7 @@ export default function FileComplaint() {
       });
 
       if (response.data.success) {
-        alert('Complaint submitted successfully!');
+        if (showToast) showToast('Complaint submitted successfully!', 'success');
         setTitle('');
         setDescription('');
         setCategory('');
@@ -83,7 +85,7 @@ export default function FileComplaint() {
       }
     } catch (err) {
       console.error('Error submitting complaint:', err);
-      alert('Failed to submit complaint.');
+      if (showToast) showToast('Failed to submit complaint.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -190,7 +192,7 @@ export default function FileComplaint() {
                       <label className="text-sm font-bold text-slate-700 ml-1">Title (Optional)</label>
                       <input 
                         type="text" 
-                        placeholder="e.g. AC not blowing cold air"
+                        placeholder="e.g. Ceiling fan not working, Water supply disruption in bathroom"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 text-slate-700 font-medium outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all"
@@ -204,7 +206,7 @@ export default function FileComplaint() {
                         <span className="text-xs font-medium text-slate-400">{description.length} / 500 characters</span>
                       </div>
                       <textarea 
-                        placeholder="Tell us what happened..." 
+                        placeholder="e.g. The ceiling fan in my room has not been working for 2 days. Due to the summer heat, it is causing significant discomfort. Kindly arrange for repair at the earliest." 
                         value={description}
                         maxLength={500}
                         onChange={(e) => setDescription(e.target.value)}
@@ -229,7 +231,7 @@ export default function FileComplaint() {
                     <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-50">
                       <button 
                         type="button" 
-                        onClick={() => alert(`Preview: ${title || 'Untitled'} - ${description}`)}
+                        onClick={() => showToast && showToast(`Preview: ${title || 'Untitled'} - ${description}`, 'info')}
                         className="flex-1 h-14 rounded-2xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <Eye className="w-5 h-5" />

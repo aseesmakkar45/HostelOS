@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Ticket, 
   PlusCircle, 
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function MessManagement() {
+  const { showToast } = useAuth() || {};
   const [coupons, setCoupons] = useState(42);
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,12 +48,12 @@ export default function MessManagement() {
   }, []);
 
   const handleBuyCoupons = () => {
-    alert('Processing coupon purchase for 10 coupons...');
+    if (showToast) showToast('Processing coupon purchase for 10 coupons...', 'info');
     setCoupons(prev => prev + 10);
   };
 
   const handleMarkAttending = (mealType) => {
-    alert(`Marked attending for ${mealType}! Coupon will be deducted.`);
+    if (showToast) showToast(`Marked attending for ${mealType}! Coupon will be deducted.`, 'success');
     setCoupons(prev => Math.max(0, prev - 1));
   };
 

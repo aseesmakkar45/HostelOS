@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { 
   CreditCard, 
   Calendar, 
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function PaymentHistory() {
+  const { showToast } = useAuth() || {};
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -49,7 +51,7 @@ export default function PaymentHistory() {
   const handlePayOutstanding = async () => {
     const pendingFees = fees.filter(fee => fee.status === 'pending');
     if (pendingFees.length === 0) {
-      alert('You have no outstanding dues!');
+      if (showToast) showToast('You have no outstanding dues!', 'info');
       return;
     }
 
@@ -69,10 +71,10 @@ export default function PaymentHistory() {
           .reduce((sum, fee) => sum + parseFloat(fee.amount), 0);
         setOutstanding(unpaidSum);
       }
-      alert('All outstanding payments processed successfully!');
+      if (showToast) showToast('All outstanding payments processed successfully!', 'success');
     } catch (err) {
       console.error('Error paying outstanding fees:', err);
-      alert('Failed to process payments.');
+      if (showToast) showToast('Failed to process payments.', 'error');
     } finally {
       setLoading(false);
     }
@@ -145,7 +147,7 @@ export default function PaymentHistory() {
                   Pay Outstanding
                 </button>
                 <button 
-                  onClick={() => alert('Auto-Pay configuration opened.')}
+                  onClick={() => showToast && showToast('Auto-Pay configuration opened.', 'info')}
                   className="px-8 py-3 bg-indigo-400/30 text-white rounded-2xl font-semibold border border-white/20 hover:bg-indigo-400/40 transition-all text-sm cursor-pointer"
                 >
                   Manage Auto-Pay
@@ -235,7 +237,7 @@ export default function PaymentHistory() {
                             </td>
                             <td className="py-5 text-right">
                               <button 
-                                onClick={() => alert(`Opening invoice details for ${fee.fee_type} fee`)}
+                                onClick={() => showToast && showToast(`Opening invoice details for ${fee.fee_type} fee`, 'info')}
                                 className="p-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
                               >
                                 <ExternalLink className="w-4 h-4" />
@@ -249,7 +251,7 @@ export default function PaymentHistory() {
                 </div>
               )}
               <button 
-                onClick={() => alert('Loading full history...')}
+                onClick={() => showToast && showToast('Loading full history...', 'info')}
                 className="w-full mt-6 py-4 border-2 border-dashed border-slate-100 text-slate-400 text-sm font-bold rounded-2xl hover:border-indigo-100 hover:text-indigo-400 transition-all cursor-pointer"
               >
                 View / Load Full History
@@ -262,7 +264,7 @@ export default function PaymentHistory() {
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-xl font-extrabold text-slate-800">Saved Methods</h2>
                   <button 
-                    onClick={() => alert('Add new payment method modal...')}
+                    onClick={() => showToast && showToast('Add new payment method modal...', 'info')}
                     className="text-indigo-600 text-sm font-bold cursor-pointer"
                   >
                     + Add New
