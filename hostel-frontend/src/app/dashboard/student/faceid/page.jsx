@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
 import { Camera, ShieldCheck, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Loader2, Focus } from 'lucide-react';
-import * as faceapi from 'face-api.js';
+import { Camera, ShieldCheck, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Loader2, Focus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function FaceIDRegistration() {
@@ -42,20 +42,10 @@ export default function FaceIDRegistration() {
     }
 
     async function loadModels() {
-      try {
-        setModelLoading(true);
-        const MODEL_URL = '/models';
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-        ]);
-        if (active) setModelLoaded(true);
-      } catch (err) {
-        console.error('Failed to load face models:', err);
-        setError('Failed to load face recognition. Please reload.');
-      } finally {
-        if (active) setModelLoading(false);
+      // With Python DeepFace, we don't need to load heavy client-side models!
+      if (active) {
+        setModelLoaded(true);
+        setModelLoading(false);
       }
     }
 
@@ -112,36 +102,46 @@ export default function FaceIDRegistration() {
       ) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        const displaySize = { width: video.videoWidth, height: video.videoHeight };
-        faceapi.matchDimensions(canvas, displaySize);
-
-        const detection = await faceapi.detectSingleFace(video)
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-
         const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const base64Image = canvas.toDataURL('image/jpeg', 0.8);
 
-        if (detection) {
-          setError(prev => prev === 'Please center your face inside the scan frame.' ? '' : prev);
-          const resizedDetections = faceapi.resizeResults(detection, displaySize);
-          
-          // Draw face box and landmarks
-          faceapi.draw.drawDetections(canvas, resizedDetections);
-          faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+        if (window.isExtracting) return;
+        window.isExtracting = true;
 
-          setFaceDescriptor(Array.from(detection.descriptor));
-        } else {
+        try {
+          const res = await fetch('http://localhost:8000/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64Image })
+          });
+          const data = await res.json();
+          window.isExtracting = false;
+
+          if (data.success && data.embedding) {
+            setError(prev => prev === 'Please center your face inside the scan frame.' ? '' : prev);
+            setFaceDescriptor(data.embedding);
+          } else {
+            setFaceDescriptor(null);
+          }
+        } catch (err) {
+          window.isExtracting = false;
           setFaceDescriptor(null);
+          // Don't show error continuously if Python server is just starting up
         }
       }
     };
 
-    animationRef.current = setInterval(detect, 150);
+    // Run every 1000ms (1 second) to avoid overloading the local Python server
+    animationRef.current = setInterval(detect, 1000);
   };
 
   const registerFaceID = async () => {
-    if (!faceDescriptor || faceDescriptor.length !== 128) {
+    if (!faceDescriptor || faceDescriptor.length !== 512) {
       setError('Please center your face inside the scan frame.');
       return;
     }

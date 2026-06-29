@@ -27,7 +27,6 @@ import {
   UserCheck,
   ChevronDown
 } from 'lucide-react';
-import * as faceapi from 'face-api.js';
 
 export default function GateEntryKiosk() {
   const { logout, showToast } = useAuth() || {};
@@ -102,11 +101,10 @@ export default function GateEntryKiosk() {
           setRegisteredFacesCount(res.data.data.length);
           const labeledDescriptors = res.data.data.map(user => {
             const arr = JSON.parse(user.face_data);
-            return new faceapi.LabeledFaceDescriptors(String(user.id), [new Float32Array(arr)]);
+            return { id: user.id, face_data: arr };
           });
-          const matcher = new faceapi.FaceMatcher(labeledDescriptors, 0.75); // Extremely lenient threshold
-          faceMatcherRef.current = matcher;
-          setFaceMatcher(matcher);
+          faceMatcherRef.current = labeledDescriptors;
+          setFaceMatcher(labeledDescriptors);
         }
       } catch (err) {
         console.error('Face reload error:', err.message);
@@ -115,15 +113,7 @@ export default function GateEntryKiosk() {
 
     async function loadResources() {
       try {
-        // 1. Load Models first
-        const MODEL_URL = '/models';
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-        ]);
-
-        // 2. Fetch Registered Faces from Database
+        // Fetch Registered Faces from Database
         await refreshFaceMatcher();
 
         if (active) {
@@ -183,51 +173,50 @@ export default function GateEntryKiosk() {
       ) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        const displaySize = { width: video.videoWidth, height: video.videoHeight };
-        faceapi.matchDimensions(canvas, displaySize);
-
-        const detection = await faceapi.detectSingleFace(video)
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-
         const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const base64Image = canvas.toDataURL('image/jpeg', 0.8);
 
-        if (detection) {
-          const resizedDetection = faceapi.resizeResults(detection, displaySize);
+        const registeredFaces = faceMatcherRef.current;
+        const isVerifying = verifyingRef.current;
+
+        if (registeredFaces && registeredFaces.length > 0 && !cooldownRef.current && !isVerifying) {
+          if (window.isExtracting) return;
+          window.isExtracting = true;
           
-          // Draw Box
-          const box = resizedDetection.detection.box;
-
-          // Use REFS to avoid stale closure - these always reflect latest values
-          const currentMatcher = faceMatcherRef.current;
-          const isVerifying = verifyingRef.current;
-
-          if (currentMatcher && !cooldownRef.current && !isVerifying) {
-            const bestMatch = currentMatcher.findBestMatch(detection.descriptor);
+          try {
+            const res = await fetch('http://localhost:8000/match', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64Image, registered_faces: registeredFaces })
+            });
+            const data = await res.json();
+            window.isExtracting = false;
             
-            if (bestMatch.label !== 'unknown') {
-              const matchedBox = new faceapi.draw.DrawBox(box, { label: 'Checking...', lineWidth: 4, boxColor: '#10b981' });
-              matchedBox.draw(canvas);
+            if (data.success && data.match) {
               unmatchedCounterRef.current = 0;
-              handleFaceAutoVerify(bestMatch.label);
-            } else {
-              const drawBox = new faceapi.draw.DrawBox(box, { label: 'Scanning...', lineWidth: 3, boxColor: '#6366f1' });
-              drawBox.draw(canvas);
-
+              handleFaceAutoVerify(data.match);
+            } else if (data.success === false && data.error === 'Face mismatch') {
               unmatchedCounterRef.current += 1;
-              if (unmatchedCounterRef.current >= 5) { // 5 frames * 300ms = 1.5s
+              if (unmatchedCounterRef.current >= 3) { // 3 frames = 3 seconds
                 unmatchedCounterRef.current = 0;
                 handleFaceMismatch();
               }
+            } else {
+               unmatchedCounterRef.current = 0;
             }
+          } catch (err) {
+            window.isExtracting = false;
+            unmatchedCounterRef.current = 0;
           }
-        } else {
-          unmatchedCounterRef.current = 0;
         }
       }
     };
-    animationRef.current = setInterval(detect, 300);
+    animationRef.current = setInterval(detect, 1000);
   };
 
   const handleFaceAutoVerify = async (studentId) => {
@@ -361,7 +350,7 @@ export default function GateEntryKiosk() {
           {/* Left Panel: Camera Verification */}
           <div className="space-y-4 flex flex-col">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Camera className="w-4 h-4 text-indigo-500" /> Face Verification (v3)
+              <Camera className="w-4 h-4 text-indigo-500" /> Face Verification (Python AI)
             </h3>
             <div className="aspect-video bg-slate-950 rounded-[2.5rem] border-2 border-slate-800 overflow-hidden relative group shadow-2xl flex-1 min-h-[300px]">
               <video 
