@@ -5,7 +5,6 @@ import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import axios from '@/lib/axios';
 import { Camera, ShieldCheck, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Loader2, Focus } from 'lucide-react';
-import { Camera, ShieldCheck, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Loader2, Focus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function FaceIDRegistration() {
