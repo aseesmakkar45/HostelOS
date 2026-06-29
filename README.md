@@ -8,12 +8,14 @@
 
 ### 🔑 Demo Login Credentials
 
-| Role | Email | Password |
-|---|---|---|
-| **Student** | `student@campusstay.com` | `student123` |
-| **Warden** | `warden@campusstay.com` | `warden123` |
-| **Admin** | `admin@campusstay.com` | `admin123` |
-| **Gate Kiosk** | *(Use Warden or Admin credentials)* | |
+The database is pre-seeded with 50 students, 5 wardens/security staff, and 2 admins. You can log into any of them to view different data profiles!
+
+| Role | Email Format | Password | Examples |
+|---|---|---|---|
+| **Student (x50)** | `student[1-50]@hostel.com` <br>or `student@campusstay.com` | `student123` | `student1@hostel.com`, `student42@hostel.com` |
+| **Warden (x5)** | `warden@campusstay.com`<br>or `warden[3-4]@hostel.com`<br>or `security@hostel.com` | `warden123` | `warden@campusstay.com`, `warden3@hostel.com` |
+| **Admin (x2)** | `admin@campusstay.com`<br>or `admin@hostel.com` | `admin123` | `admin@campusstay.com` |
+| **Gate Kiosk** | *(Use Warden or Admin credentials)* | | |
 
 ---
 
@@ -189,14 +191,7 @@ npx next start -p 3002
 
 ## Demo Walkthrough
 
-### Login Credentials
-
-| Role | Email | Password |
-|---|---|---|
-| Student | `student@campusstay.com` | `student123` |
-| Warden | `warden@campusstay.com` | `warden123` |
-| Admin | `admin@campusstay.com` | `admin123` |
-| Gate Kiosk | *Use Warden or Admin credentials above* | |
+> See the **Demo Login Credentials** section at the very top of this README for the full list of available accounts (50 students, 5 wardens, 2 admins).
 
 > All portals are accessible from the main root URL (`/`) which acts as a Role Selection Portal. Select your role to access the corresponding login interface.
 
