@@ -123,7 +123,7 @@ export default function FaceIDRegistration() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (detection) {
-          setError('');
+          setError(prev => prev === 'Please center your face inside the scan frame.' ? '' : prev);
           const resizedDetections = faceapi.resizeResults(detection, displaySize);
           
           // Draw face box and landmarks

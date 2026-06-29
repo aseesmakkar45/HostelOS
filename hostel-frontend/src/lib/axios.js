@@ -8,7 +8,7 @@ const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const instance = axios.create({
   baseURL,
-  timeout: 10000,
+  timeout: 60000, // 60 seconds to allow Render free tier to wake up
 });
 
 // ─── Request Interceptor — attach JWT token ───────────────────────────────────
