@@ -97,14 +97,14 @@ export default function GateEntryKiosk() {
     // Helper to build the FaceMatcher from DB
     async function refreshFaceMatcher() {
       try {
-        const res = await axios.get('/gate/faces');
+        const res = await axios.get(`/gate/faces?t=${Date.now()}`);
         if (res.data.success && res.data.data.length > 0) {
           setRegisteredFacesCount(res.data.data.length);
           const labeledDescriptors = res.data.data.map(user => {
             const arr = JSON.parse(user.face_data);
             return new faceapi.LabeledFaceDescriptors(String(user.id), [new Float32Array(arr)]);
           });
-          const matcher = new faceapi.FaceMatcher(labeledDescriptors, 0.55); // Slightly lenient threshold
+          const matcher = new faceapi.FaceMatcher(labeledDescriptors, 0.60); // Standard threshold
           faceMatcherRef.current = matcher;
           setFaceMatcher(matcher);
         }
