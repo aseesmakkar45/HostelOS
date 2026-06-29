@@ -104,7 +104,7 @@ export default function GateEntryKiosk() {
             const arr = JSON.parse(user.face_data);
             return new faceapi.LabeledFaceDescriptors(String(user.id), [new Float32Array(arr)]);
           });
-          const matcher = new faceapi.FaceMatcher(labeledDescriptors, 0.60); // Standard threshold
+          const matcher = new faceapi.FaceMatcher(labeledDescriptors, 0.65); // More lenient threshold
           faceMatcherRef.current = matcher;
           setFaceMatcher(matcher);
         }
@@ -361,7 +361,7 @@ export default function GateEntryKiosk() {
           {/* Left Panel: Camera Verification */}
           <div className="space-y-4 flex flex-col">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Camera className="w-4 h-4 text-indigo-500" /> Face Verification
+              <Camera className="w-4 h-4 text-indigo-500" /> Face Verification (v2)
             </h3>
             <div className="aspect-video bg-slate-950 rounded-[2.5rem] border-2 border-slate-800 overflow-hidden relative group shadow-2xl flex-1 min-h-[300px]">
               <video 
