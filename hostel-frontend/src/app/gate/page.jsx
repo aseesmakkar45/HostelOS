@@ -113,6 +113,9 @@ export default function GateEntryKiosk() {
 
     async function loadResources() {
       try {
+        // Auto-migrate database just in case schema is missing
+        await axios.get('/gate/migrate').catch(e => console.log('Migration checked.'));
+
         // Fetch Registered Faces from Database
         await refreshFaceMatcher();
 
