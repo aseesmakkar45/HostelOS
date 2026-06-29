@@ -166,35 +166,23 @@ const seedDatabase = async () => {
     `);
     console.log('✅ Tables created.');
 
-    console.log('🔄 Seeding users with Indian names...');
+    console.log('🔄 Seeding users with strict credentials...');
     const adminHash = await bcrypt.hash('admin123', 10);
     const wardenHash = await bcrypt.hash('warden123', 10);
     const studentHash = await bcrypt.hash('student123', 10);
+    const securityHash = await bcrypt.hash('security123', 10);
 
     const admins = [
-      { name: 'Rajesh Kumar (Admin)', email: 'admin@hostel.com', phone: '9876543210' },
-      { name: 'Karan Johar (Campus Admin)', email: 'admin@campusstay.com', phone: '9876543215' }
+      { name: 'Hostel Admin', email: 'admin@hostel.com', phone: '9876543210' }
     ];
 
-    const wardens = [
-      { name: 'Priya Sharma (Warden)', email: 'warden@hostel.com', phone: '9876543211' },
-      { name: 'Sunita Devi (Warden)', email: 'warden@campusstay.com', phone: '9876543216' },
-      { name: 'Amit Singhal (Warden)', email: 'warden3@hostel.com', phone: '9876543231' },
-      { name: 'Rekha Verma (Warden)', email: 'warden4@hostel.com', phone: '9876543232' },
-      { name: 'Rajesh Singh (Security Officer)', email: 'security@hostel.com', phone: '+91 90000 33333' }
-    ];
+    const wardens = [];
+    for (let i = 1; i <= 4; i++) {
+      wardens.push({ name: `Hostel Warden ${i}`, email: `warden${i}@hostel.com`, phone: `98765432${10 + i}` });
+    }
 
-    const initialStudents = [
-      { name: 'Aarav Sharma', email: 'student1@hostel.com', phone: '9876543212', gender: 'Male' },
-      { name: 'Ananya Patel', email: 'student2@hostel.com', phone: '9876543213', gender: 'Female' },
-      { name: 'Rohan Gupta', email: 'student3@hostel.com', phone: '9876543214', gender: 'Male' },
-      { name: 'Rahul Verma', email: 'student@campusstay.com', phone: '9876543217', gender: 'Male' },
-      { name: 'Aditi Rao', email: 'student4@hostel.com', phone: '9876543218', gender: 'Female' },
-      { name: 'Vikram Malhotra', email: 'student5@hostel.com', phone: '9876543219', gender: 'Male' },
-      { name: 'Deepak Reddy', email: 'student6@hostel.com', phone: '9876543220', gender: 'Male' },
-      { name: 'Neha Joshi', email: 'student7@hostel.com', phone: '9876543221', gender: 'Female' },
-      { name: 'Amit Mishra', email: 'student8@hostel.com', phone: '9876543222', gender: 'Male' },
-      { name: 'Pooja Choudhury', email: 'student9@hostel.com', phone: '9876543223', gender: 'Female' }
+    const security = [
+      { name: 'Gate Security Kiosk', email: 'security@hostel.com', phone: '+91 90000 33333' }
     ];
 
     const indianFirstNamesMale = ['Siddharth', 'Varun', 'Yash', 'Ishaan', 'Kabir', 'Arjun', 'Dev', 'Gaurav', 'Pranav', 'Aryan', 'Ritvik', 'Abhinav', 'Mayank', 'Shreyas', 'Kunal', 'Harish', 'Nikhil', 'Vivek', 'Akash', 'Manish', 'Sanjay'];
@@ -204,8 +192,8 @@ const seedDatabase = async () => {
       'Mehta', 'Singh', 'Kapoor', 'Deshmukh', 'Chawla', 'Nair', 'Pillai', 'Bose', 'Chatterjee', 'Dubey'
     ];
 
-    const studentUsers = [...initialStudents];
-    for (let i = 10; i <= 50; i++) {
+    const studentUsers = [];
+    for (let i = 1; i <= 50; i++) {
       const isFemale = i % 2 === 0;
       const fnList = isFemale ? indianFirstNamesFemale : indianFirstNamesMale;
       const fn = fnList[i % fnList.length];
@@ -229,6 +217,13 @@ const seedDatabase = async () => {
       await client.query(
         `INSERT INTO users (name, email, password, role, phone) VALUES ($1, $2, $3, $4, $5)`,
         [w.name, w.email, wardenHash, 'warden', w.phone]
+      );
+    }
+    // Insert Security (as warden role for gate kiosk access)
+    for (const s of security) {
+      await client.query(
+        `INSERT INTO users (name, email, password, role, phone) VALUES ($1, $2, $3, $4, $5)`,
+        [s.name, s.email, securityHash, 'warden', s.phone]
       );
     }
     // Insert Students
@@ -356,7 +351,7 @@ const seedDatabase = async () => {
     }
     console.log('✅ Seeded mess menu.');
 
-    const wardenUserResult = await client.query("SELECT id FROM users WHERE email = 'warden@hostel.com'");
+    const wardenUserResult = await client.query("SELECT id FROM users WHERE email = 'warden1@hostel.com'");
     const wardenId = wardenUserResult.rows[0].id;
 
     console.log('🔄 Seeding complaints...');

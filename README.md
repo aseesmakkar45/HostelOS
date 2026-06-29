@@ -8,14 +8,14 @@
 
 ### 🔑 Demo Login Credentials
 
-The database is pre-seeded with 50 students, 5 wardens/security staff, and 2 admins. You can log into any of them to view different data profiles!
+The database is pre-seeded with 50 students, 4 wardens, 1 admin, and 1 security kiosk account. **No other credentials will work.**
 
-| Role | Email Format | Password | Examples |
+| Role | Email | Password | Note |
 |---|---|---|---|
-| **Student (x50)** | `student[1-50]@hostel.com` <br>or `student@campusstay.com` | `student123` | `student1@hostel.com`, `student42@hostel.com` |
-| **Warden (x5)** | `warden@campusstay.com`<br>or `warden[3-4]@hostel.com`<br>or `security@hostel.com` | `warden123` | `warden@campusstay.com`, `warden3@hostel.com` |
-| **Admin (x2)** | `admin@campusstay.com`<br>or `admin@hostel.com` | `admin123` | `admin@campusstay.com` |
-| **Gate Kiosk** | *(Use Warden or Admin credentials)* | | |
+| **Student (x50)** | `student[1-50]@hostel.com` | `student123` | Example: `student1@hostel.com` |
+| **Warden (x4)** | `warden[1-4]@hostel.com` | `warden123` | Example: `warden1@hostel.com` |
+| **Admin** | `admin@hostel.com` | `admin123` | Single admin account |
+| **Gate Kiosk** | `security@hostel.com` | `security123` | Dedicated gate scanner account |
 
 ---
 
