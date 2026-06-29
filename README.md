@@ -2,6 +2,19 @@
 
 > A full-stack, AI-powered hostel management platform with multi-portal architecture, real-time biometric gate entry, and intelligent warden analytics.
 
+### 🚀 Live Demos
+- **Portal 1**: [https://hostel-os-rot5.vercel.app/](https://hostel-os-rot5.vercel.app/)
+- **Portal 2**: [https://hostel-os-tau.vercel.app/](https://hostel-os-tau.vercel.app/)
+
+### 🔑 Demo Login Credentials
+
+| Role | Email | Password |
+|---|---|---|
+| **Student** | `student@campusstay.com` | `student123` |
+| **Warden** | `warden@campusstay.com` | `warden123` |
+| **Admin** | `admin@campusstay.com` | `admin123` |
+| **Gate Kiosk** | *(Use Warden or Admin credentials)* | |
+
 ---
 
 ## What is HostelOS?
