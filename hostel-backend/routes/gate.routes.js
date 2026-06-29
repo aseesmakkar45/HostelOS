@@ -6,5 +6,6 @@ router.post('/verify', gateController.verifyGatePass);
 router.get('/faces', gateController.getRegisteredFaces);
 router.post('/verify-face', gateController.verifyFaceEntry);
 router.get('/logbook', gateController.getLogBook);
+router.get('/migrate', gateController.runMigrations);
 
 module.exports = router;

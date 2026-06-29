@@ -283,4 +283,24 @@ const getLogBook = async (req, res) => {
   }
 };
 
-module.exports = { verifyGatePass, getRegisteredFaces, verifyFaceEntry, getLogBook };
+const runMigrations = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      ALTER TABLE gate_logs 
+      ADD COLUMN IF NOT EXISTS student_id INT REFERENCES users(id) ON DELETE CASCADE;
+    `);
+    await client.query(`
+      ALTER TABLE gate_logs 
+      ADD COLUMN IF NOT EXISTS action VARCHAR(20) DEFAULT 'Entry';
+    `);
+    res.json({ success: true, message: 'Migrations ran successfully' });
+  } catch (err) {
+    console.error('Migration error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { verifyGatePass, getRegisteredFaces, verifyFaceEntry, getLogBook, runMigrations };
