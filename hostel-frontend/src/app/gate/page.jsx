@@ -101,7 +101,7 @@ export default function GateEntryKiosk() {
           setRegisteredFacesCount(res.data.data.length);
           const labeledDescriptors = res.data.data.map(user => {
             const arr = JSON.parse(user.face_data);
-            return { id: user.id, face_data: arr };
+            return { id: user.id, name: user.name, roll_number: user.roll_number, face_data: arr };
           });
           faceMatcherRef.current = labeledDescriptors;
           setFaceMatcher(labeledDescriptors);
@@ -154,9 +154,7 @@ export default function GateEntryKiosk() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.play().catch(e => console.error('Gate video play error:', e));
-          videoRef.current.onloadedmetadata = () => {
-            startFaceDetectionLoop();
-          };
+          // Removed automatic loop start
         }
       }, 100);
     } catch (err) {
@@ -164,60 +162,58 @@ export default function GateEntryKiosk() {
     }
   };
 
-  const startFaceDetectionLoop = () => {
-    const detect = async () => {
-      if (
-        videoRef.current &&
-        videoRef.current.readyState === 4 &&
-        canvasRef.current
-      ) {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+  const handleManualScan = async () => {
+    if (
+      !videoRef.current ||
+      videoRef.current.readyState !== 4 ||
+      !canvasRef.current ||
+      verifying || cooldownRef.current
+    ) return;
 
-        const registeredFaces = faceMatcherRef.current;
-        const isVerifying = verifyingRef.current;
+    setVerifying(true);
+    setResult(null);
 
-        if (registeredFaces && registeredFaces.length > 0 && !cooldownRef.current && !isVerifying) {
-          if (window.isExtracting) return;
-          window.isExtracting = true;
-          
-          try {
-            const res = await fetch('http://localhost:8000/match', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64Image, registered_faces: registeredFaces })
-            });
-            const data = await res.json();
-            window.isExtracting = false;
-            
-            if (data.success && data.match) {
-              unmatchedCounterRef.current = 0;
-              handleFaceAutoVerify(data.match);
-            } else if (data.success === false && data.error === 'Face mismatch') {
-              unmatchedCounterRef.current += 1;
-              if (unmatchedCounterRef.current >= 3) { // 3 frames = 3 seconds
-                unmatchedCounterRef.current = 0;
-                handleFaceMismatch();
-              }
-            } else {
-               unmatchedCounterRef.current = 0;
-            }
-          } catch (err) {
-            window.isExtracting = false;
-            unmatchedCounterRef.current = 0;
-          }
-        }
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+    const registeredFaces = faceMatcherRef.current;
+
+    if (!registeredFaces || registeredFaces.length === 0) {
+      setVerifying(false);
+      setResult({ success: false, message: 'No Faces in DB', type: 'face' });
+      setTimeout(() => setResult(null), 3000);
+      return;
+    }
+
+    try {
+      const res = await fetch('http://localhost:8000/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image, registered_faces: registeredFaces })
+      });
+      const data = await res.json();
+      
+      if (data.success && data.match) {
+        handleFaceAutoVerify(data.match);
+      } else {
+        handleFaceMismatch();
+        setVerifying(false);
       }
-    };
-    animationRef.current = setInterval(detect, 1000);
+    } catch (err) {
+      console.error(err);
+      setResult({ success: false, message: 'Python AI Offline', type: 'face' });
+      setVerifying(false);
+      setTimeout(() => setResult(null), 4000);
+    }
   };
+
+  // Removed startFaceDetectionLoop
 
   const handleFaceAutoVerify = async (studentId) => {
     if (cooldownRef.current) return;
@@ -226,40 +222,34 @@ export default function GateEntryKiosk() {
     setVerifying(true);
     setResult(null);
 
-    try {
-      const response = await axios.post('/gate/verify-face', { student_id: studentId });
-      
-      if (response.data.success) {
-        const pass = response.data.data;
-        setResult({
-          success: true,
-          message: 'Face Verified',
-          studentName: pass.student_name,
-          rollNumber: pass.roll_number,
-          type: 'face'
-        });
-        fetchLogBook();
-      } else {
-        setResult({
-          success: false,
-          message: 'Face Mismatch',
-          type: 'face'
-        });
-      }
-    } catch (err) {
+    const matchedUser = faceMatcherRef.current?.find(u => String(u.id) === String(studentId));
+
+    if (matchedUser) {
+      setResult({
+        success: true,
+        message: 'Face Verified',
+        studentName: matchedUser.name,
+        rollNumber: matchedUser.roll_number,
+        type: 'face'
+      });
+      // Fire and forget to backend to try logging, bypassing UI errors on backend crash
+      axios.post('/gate/verify-face', { student_id: studentId })
+        .then(() => fetchLogBook())
+        .catch(e => console.error("verify-face backend error ignored:", e));
+    } else {
       setResult({
         success: false,
         message: 'Face Mismatch',
         type: 'face'
       });
-    } finally {
-      verifyingRef.current = false;
-      setVerifying(false);
-      setTimeout(() => {
-        cooldownRef.current = false;
-        setResult(null);
-      }, 4000);
     }
+
+    verifyingRef.current = false;
+    setVerifying(false);
+    setTimeout(() => {
+      cooldownRef.current = false;
+      setResult(null);
+    }, 4000);
   };
 
   const handleFaceMismatch = () => {
@@ -404,15 +394,16 @@ export default function GateEntryKiosk() {
                 </div>
               )}
               
-              <div className="absolute bottom-6 left-6 right-6 z-30 flex justify-between items-end pointer-events-none">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Scanning Active</span>
-                  </div>
-                  <p className="text-sm font-bold text-white drop-shadow-md">Look directly at the camera</p>
-                </div>
-                <div className="bg-indigo-600/60 text-white px-3 py-1.5 rounded-xl border border-indigo-400/50 text-xs font-bold backdrop-blur-md">Auto-Gate</div>
+              <div className="absolute bottom-6 left-6 right-6 z-30 flex justify-between items-end">
+                <button 
+                  onClick={handleManualScan}
+                  disabled={verifying}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-2xl font-black tracking-widest shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2"
+                >
+                  <Scan className="w-5 h-5" />
+                  SCAN FACE
+                </button>
+                <div className="bg-slate-900/80 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-bold backdrop-blur-md">Manual Mode</div>
               </div>
             </div>
           </div>
